@@ -121,7 +121,7 @@ launchctl bootout gui/$(id -u) com.task.weekly
 |--------|------|------|---------|---------|------|
 | SpeedCat | https://speedcat.co | 查流量、节点信息 | 2026-03-09 | Profile 持久化（cookies 兜底） | ✅ 已配置 |
 | 阿里云百炼 | https://bailian.console.aliyun.com | 查 Token 用量、套餐余额 | 2026-03-09 | Profile 持久化 | ✅ 已配置 |
-| 观影网 GYING | https://www.gying.net | 影视搜索、详情页访问、资源提取 | 2026-03-09 | Profile 持久化（规划中，骨架已初始化） | 🟡 进行中 |
+| 观影网 GYING | https://www.gying.net | 影视搜索、详情页访问、资源提取 | 2026-03-09 | **必须使用 `~/.openclaw/chrome-profiles/gying` 专用 Profile**（默认浏览器上下文不可替代） | ✅ 已固化 |
 
 ### 底层脚本
 
@@ -129,6 +129,13 @@ launchctl bootout gui/$(id -u) com.task.weekly
 - **Cookies 目录**: `~/.openclaw/cookies/`
 - **Profile 目录**: `~/.openclaw/chrome-profiles/`
 - **文档目录**: `~/.openclaw/docs/`
+
+### GYING 专用说明
+
+- **GYING 必须使用专用 Profile**：`~/.openclaw/chrome-profiles/gying`
+- **启动脚本**：`~/.openclaw/scripts/start-gying-chrome.sh`
+- **排障优先级**：先确认是否真的使用了 `gying` 专用 Profile，再判断是不是登录态失效
+- **禁止误判**：不要因为其他浏览器上下文落到登录页，就直接判定 `gying` Profile 掉登录态
 
 ---
 
