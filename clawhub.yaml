@@ -1,0 +1,84 @@
+name: token-usage-analysis
+version: 1.0.0
+description: OpenClaw Token 用量分析工具 - 自动收集 + 智能分析
+author: 麻辣小龙虾 🦞
+homepage: https://github.com/openclaw/clawhub-skills
+
+# 安装配置
+install:
+  script: install.sh
+  post_install: |
+    echo ""
+    echo "✅ 安装完成！"
+    echo ""
+    echo "📋 配置摘要:"
+    echo "   - 日志目录：~/.openclaw/logs/"
+    echo "   - 收集脚本：~/.openclaw/bin/collect-usage"
+    echo "   - 定时任务：每小时执行（0 分）"
+    echo ""
+    echo "📊 使用说明:"
+    echo "   - 查询用量：说 '查 Token 用量'"
+    echo "   - 诊断状态：collect-usage --diagnose"
+    echo ""
+    echo "⏱️  提示：建议 24 小时后查询，获得完整的用量报告"
+
+# 卸载配置
+uninstall:
+  script: uninstall.sh
+
+# 命令触发
+commands:
+  - name: 查 Token 用量
+    description: 查询 Token 用量分析报告
+  - name: Token 用量分析
+    description: 查询 Token 用量分析报告
+  - name: 查上周末的 Token 用量
+    description: 查询上周末（周六 + 周日）的 Token 用量
+  - name: 查过去 7 天的用量
+    description: 查询过去 7 天的 Token 用量汇总
+
+# 标签（用于搜索和分类）
+tags:
+  - utility
+  - monitoring
+  - token
+  - usage
+  - analysis
+  - 工具
+  - 监控
+
+# 系统要求
+requirements:
+  - python3
+  - macOS 或 Linux
+
+# 权限说明（安全审计用）
+permissions:
+  - read: ~/.openclaw/agents/*/sessions/*.jsonl
+  - write: ~/.openclaw/logs/session-usage.log
+  - execute: 定时任务（每小时）
+
+# 安全声明
+security:
+  - 不读取任何 API Key 或认证信息
+  - 不访问网络
+  - 不外发任何数据
+  - 仅读取本地 session 文件中的 usage 字段
+  - 日志文件仅包含用量统计，不含对话内容
+
+# 依赖
+dependencies: []
+
+# 兼容的 OpenClaw 版本
+compatibility:
+  min_version: 0.9.0
+
+# 更新日志
+changelog:
+  - version: 1.0.0
+    date: 2026-03-09
+    changes:
+      - 初始版本发布
+      - 支持每小时自动收集
+      - 支持多维度用量分析
+      - 支持日志自动轮转和清理
