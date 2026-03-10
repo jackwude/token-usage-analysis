@@ -1,0 +1,56 @@
+{
+  "results": [],
+  "summary": {
+    "executed_keywords": 6,
+    "successful_keywords": 0,
+    "failed_keywords": 6,
+    "total_items": 0,
+    "unique_note_ids": 0,
+    "failed_keywords_details": {
+      "OPPO游戏助手 卡顿": "搜索结果为空",
+      "OPPO游戏助手 广告": "搜索结果为空",
+      "游戏侧边栏 调不出来": "搜索结果为空",
+      "游戏助手 卸载": "搜索结果为空",
+      "游戏助手 关闭": "搜索结果为空",
+      "游戏助手 异常": "搜索结果为空"
+    },
+    "need_per_keyword": 1,
+    "candidate_per_keyword": 5,
+    "filters": {
+      "sort_by": "综合",
+      "publish_time": "一周内"
+    }
+  },
+  "per_keyword": {
+    "OPPO游戏助手 卡顿": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO游戏助手 广告": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏侧边栏 调不出来": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 卸载": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 关闭": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 异常": {
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    }
+  }
+}

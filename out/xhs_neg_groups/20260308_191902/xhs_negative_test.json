@@ -1,0 +1,34 @@
+{
+  "details": [],
+  "summary": {
+    "executed_keywords": 2,
+    "successful_keywords": 0,
+    "failed_keywords": 2,
+    "total_details": 0,
+    "days": 7,
+    "candidate_per_keyword": 10,
+    "need_per_keyword": 2,
+    "max_total": 30,
+    "failed_details": []
+  },
+  "per_keyword": {
+    "OPPO 游戏助手 卡顿": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO 游戏助手 广告": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    }
+  },
+  "negative_filter": {
+    "enabled": true,
+    "lexicon": "/Users/fx/.openclaw/workspace/skills/xhs-keyword-search-export/references/negative_lexicon.json",
+    "threshold": 2,
+    "max_detail_per_keyword": 8
+  }
+}

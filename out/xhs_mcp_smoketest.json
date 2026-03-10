@@ -1,0 +1,52 @@
+{
+  "details": [],
+  "summary": {
+    "executed_keywords": 6,
+    "successful_keywords": 0,
+    "failed_keywords": 6,
+    "total_details": 0,
+    "days": 7,
+    "candidate_per_keyword": 3,
+    "need_per_keyword": 1,
+    "max_total": 3,
+    "failed_details": []
+  },
+  "per_keyword": {
+    "OPPO游戏助手 卡顿": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO游戏助手 广告": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏侧边栏 调不出来": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 卸载": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 关闭": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 异常": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    }
+  }
+}

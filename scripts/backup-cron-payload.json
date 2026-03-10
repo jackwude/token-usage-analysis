@@ -1,0 +1,17 @@
+{
+  "name": "OpenClaw workspace backup notification (03:05)",
+  "schedule": {
+    "kind": "cron",
+    "expr": "5 3 * * *",
+    "tz": "Asia/Shanghai"
+  },
+  "payload": {
+    "kind": "agentTurn",
+    "model": "bailian/qwen3.5-plus",
+    "timeoutSeconds": 60,
+    "message": "Execute this command and output the result as-is: bash ~/.openclaw/workspace/scripts/backup-notify.sh"
+  },
+  "delivery": {
+    "mode": "announce"
+  }
+}

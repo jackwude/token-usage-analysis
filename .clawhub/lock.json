@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "version": "0.1.0",
+      "installedAt": 1772332843460
+    },
+    "agent-browser": {
+      "version": "0.2.0",
+      "installedAt": 1772332951312
+    },
+    "self-improving": {
+      "version": "1.1.3",
+      "installedAt": 1772369532639
+    },
+    "tavily-skill": {
+      "version": "1.0.0",
+      "installedAt": 1772467826040
+    },
+    "office": {
+      "version": "1.0.0",
+      "installedAt": 1772467832392
+    },
+    "multi-search-engine": {
+      "version": "2.0.1",
+      "installedAt": 1772467870433
+    },
+    "skill-vetter": {
+      "version": "1.0.0",
+      "installedAt": 1772521517128
+    },
+    "capability-evolver": {
+      "version": "1.21.4",
+      "installedAt": 1772523257829
+    },
+    "summarize": {
+      "version": "1.0.0",
+      "installedAt": 1772528702070
+    },
+    "proactive-agent-lite": {
+      "version": "1.0.0",
+      "installedAt": 1772753523054
+    },
+    "github": {
+      "version": "1.0.0",
+      "installedAt": 1772873042093
+    }
+  }
+}
