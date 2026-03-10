@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "silentSeconds": 90,
+  "heartbeatSeconds": 150,
+  "maxHeartbeats": 100,
+  "scope": "chat-current-task"
+}

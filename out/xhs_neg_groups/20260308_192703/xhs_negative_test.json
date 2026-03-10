@@ -1,0 +1,88 @@
+{
+  "details": [],
+  "summary": {
+    "executed_keywords": 10,
+    "successful_keywords": 0,
+    "failed_keywords": 0,
+    "empty_keywords": 10,
+    "total_details": 0,
+    "days": 7,
+    "candidate_per_keyword": 10,
+    "need_per_keyword": 2,
+    "max_total": 30,
+    "failed_details": [],
+    "search": {
+      "timeout_ms": 90000,
+      "retry": 1,
+      "retry_sleep": 15.0
+    }
+  },
+  "per_keyword": {
+    "OPPO 游戏助手 卡顿": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO 游戏助手 广告": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏侧边栏 调不出来": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 卸载": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 关闭": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 异常": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手 更新后": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "游戏助手更新后侧边栏没了": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO 游戏助手 锁 30 帧": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    },
+    "OPPO 游戏助手 120 帧": {
+      "status": "empty",
+      "count": 0,
+      "attempted": 0,
+      "reason": "搜索结果为空"
+    }
+  },
+  "negative_filter": {
+    "enabled": true,
+    "lexicon": "/Users/fx/.openclaw/workspace/skills/xhs-keyword-search-export/references/negative_lexicon.json",
+    "threshold": 2,
+    "max_detail_per_keyword": 8
+  }
+}

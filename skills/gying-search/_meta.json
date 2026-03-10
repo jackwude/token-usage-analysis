@@ -1,0 +1,33 @@
+{
+  "name": "gying-search",
+  "version": "0.6.0",
+  "description": "在观影网 (gying.net) 搜索影视资源，默认返回前 5 条百度网盘链接（含豆瓣评分/提取码）；支持按用户指定转存到 `/影视资源（付想专用）` 文件夹（含完整自动化转存流程）。",
+  "tags": ["media", "search", "baidu", "pan", "douban", "rating", "validation", "fallback"],
+  "author": "超级大虾",
+  "license": "MIT",
+  "repository": "",
+  "scripts": ["search.sh"],
+  "capabilities": {
+    "search": "在观影网搜索影视资源",
+    "extract": "提取百度网盘链接",
+    "rating": "提取豆瓣评分信息",
+    "validate": "检测百度网盘链接有效性",
+    "fallback": "浏览器不可用时降级返回"
+  },
+  "usage": {
+    "command": "bash ~/.openclaw/workspace/skills/gying-search/search.sh <关键词> [数量]",
+    "example": "bash ~/.openclaw/workspace/skills/gying-search/search.sh 模范出租车 10"
+  },
+  "changelog": {
+    "v0.6.0": "新增完整转存流程文档：记录实际测试验证的转存步骤（点击保存→选择文件夹→确认），确保保存到指定文件夹而非根目录。",
+    "v0.5.2": "默认返回数量改为 5 个（更精简，避免信息过载）。",
+    "v0.5.1": "修改转存逻辑：不自动转存，必须用户明确指定"转存第 X 个"才执行。",
+    "v0.5.0": "新增转存功能（初版，后修正为用户指定模式）。",
+    "v0.4.1": "补齐 SKILL.md 触发元信息与调试参考文件；版本号与说明一致化。",
+    "v0.4.0": "流程优化：默认优先最新；减少逐个链接检测耗时。",
+    "v0.3.1": "浏览器降级兜底：浏览器不可用时标注后返回。",
+    "v0.3.0": "链接有效性检测：过滤失效链接。",
+    "v0.2.0": "增加豆瓣评分提取。",
+    "v0.1.0": "初始版本。"
+  }
+}

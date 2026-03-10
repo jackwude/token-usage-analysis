@@ -1,0 +1,1 @@
+0 1 * * 1 cd ~/.openclaw/workspace/skills/capability-evolver && node index.js >> ~/.openclaw/workspace/skills/capability-evolver/cron.log 2>&1

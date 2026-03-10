@@ -1,0 +1,60 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+**/*.key
+**/*.pem
+**/secrets*
+**/*.secret
+**/credentials/
+
+# OpenClaw internal files (should not be committed)
+**/openclaw.json
+**/paired.json
+**/sessions/
+**/credentials/
+**/sandboxes/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Node modules (if any skills have node dependencies)
+**/node_modules/
+
+# Python virtual environments
+**/venv/
+**/env/
+**/.venv/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Build outputs
+dist/
+build/
+
+# Local analysis / test outputs
+out/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
+# Local packaged artifacts
+*.tar.gz

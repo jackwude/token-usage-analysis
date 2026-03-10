@@ -1,0 +1,96 @@
+{
+  "feed_id": "69a41cb80000000026032247",
+  "data": {
+    "note": {
+      "noteId": "69a41cb80000000026032247",
+      "xsecToken": "ABXR0IOz4gAiwzWR5XbkX5ou4wOW9_ENbNTBrei8MHHzE=",
+      "title": "假Steam卸载方法",
+      "desc": "有没有和我一样第一次下载steam，结果搜不出目标游戏，发现下到个假的🤣，然后正常关闭还卸不掉。\n现已成功卸载，分享一下\nstep 1:先​​强制关闭进程​​，按住键盘上的 ​​Ctrl + Shift + Esc​​ 三键，打开“任务管理器”。在“进程”或“后台应用”里找到那个假 Steam 的名字（比如“Steam 运行中心”或“Steam 游戏中心”），右键点击它，选择“结束任务”。\n​​step 2:关闭后台进程后，再回到“设置” -> “应用” -> “应用和功能”，找到那个假 Steam，点击“卸载”就行啦",
+      "type": "normal",
+      "time": 1772362936000,
+      "ipLocation": "四川",
+      "user": {
+        "userId": "6605b5be000000000b030500",
+        "nickname": "冬月",
+        "nickName": "",
+        "avatar": "https://sns-avatar-qc.xhscdn.com/avatar/1040g2jo31kj0s635ig505pg5mmv2u180cvuhbs0"
+      },
+      "interactInfo": {
+        "liked": false,
+        "likedCount": "6",
+        "sharedCount": "",
+        "commentCount": "3",
+        "collectedCount": "2",
+        "collected": false
+      },
+      "imageList": [
+        {
+          "width": 1200,
+          "height": 1600,
+          "urlDefault": "http://sns-webpic-qc.xhscdn.com/202603081819/d3d941449621dd1b4971a6e086d89b30/1040g00831t5ukanhl65g5pg5mmv2u1802jpfdso!nd_dft_wlteh_webp_3",
+          "urlPre": "http://sns-webpic-qc.xhscdn.com/202603081819/4fb309999398f9e79446b5d330dd4c2e/1040g00831t5ukanhl65g5pg5mmv2u1802jpfdso!nd_prv_wlteh_webp_3"
+        }
+      ]
+    },
+    "comments": {
+      "list": [
+        {
+          "id": "69ac31ec000000001400b573",
+          "noteId": "69a41cb80000000026032247",
+          "content": "牛牛牛",
+          "likeCount": "0",
+          "createTime": 1772892653000,
+          "ipLocation": "安徽",
+          "liked": false,
+          "userInfo": {
+            "userId": "601aa544000000000100af2f",
+            "nickname": "～根号X",
+            "nickName": "",
+            "avatar": ""
+          },
+          "subCommentCount": "0",
+          "subComments": [],
+          "showTags": []
+        },
+        {
+          "id": "69aac952000000000f02d6fe",
+          "noteId": "69a41cb80000000026032247",
+          "content": "好办法真的卸载了[哭惹R][哭惹R]",
+          "likeCount": "0",
+          "createTime": 1772800339000,
+          "ipLocation": "河北",
+          "liked": false,
+          "userInfo": {
+            "userId": "61e13f0100000000100066f6",
+            "nickname": "仅限于",
+            "nickName": "",
+            "avatar": ""
+          },
+          "subCommentCount": "0",
+          "subComments": [],
+          "showTags": []
+        },
+        {
+          "id": "69aa6a69000000000600f298",
+          "noteId": "69a41cb80000000026032247",
+          "content": "任务管理器里没有这个怎么回事[哭惹R]",
+          "likeCount": "0",
+          "createTime": 1772776042000,
+          "ipLocation": "黑龙江",
+          "liked": false,
+          "userInfo": {
+            "userId": "5f5cbf66000000000101c771",
+            "nickname": "小茗.",
+            "nickName": "",
+            "avatar": ""
+          },
+          "subCommentCount": "0",
+          "subComments": [],
+          "showTags": []
+        }
+      ],
+      "cursor": "69aa6a69000000000600f298",
+      "hasMore": false
+    }
+  }
+}
