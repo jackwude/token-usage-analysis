@@ -1,14 +1,14 @@
 #!/bin/bash
-# 观影网影视资源搜索脚本 v0.4.1
+# 观影网影视资源搜索调试辅助脚本 v0.4.2
 # 用法：bash search.sh <关键词> [数量]
-# 功能：搜索影视资源，提取豆瓣评分和百度网盘链接
+# 功能：生成搜索入口与调试提示，辅助 Agent/人工执行搜索流程
 
 KEYWORD="${1:-}"
-LIMIT="${2:-10}"
+LIMIT="${2:-5}"
 
 if [ -z "$KEYWORD" ]; then
     echo "❌ 请提供搜索关键词"
-    echo "用法：bash $0 <关键词> [返回数量，默认 10]"
+    echo "用法：bash $0 <关键词> [返回数量，默认 5]"
     echo "示例：bash $0 模范出租车"
     exit 1
 fi
@@ -28,15 +28,18 @@ echo "🤖 Agent 执行步骤："
 echo "1. 使用 browser 打开 $SEARCH_URL"
 echo "2. 点击第一个搜索结果进入详情页"
 echo "3. 切换到「百度网盘」标签"
-echo "4. 提取前 $LIMIT 个有效链接（标题 + 链接 + 提取码）"
+echo "4. 提取前 $LIMIT 个有效链接（标题 + 豆瓣评分 + 链接 + 提取码 + 更新时间）"
 echo "5. 按更新时间排序，优先返回最新资源"
 echo "----------------------------------------"
 echo ""
 echo "📋 输出格式："
 echo "🎬 影视资源搜索结果：《$KEYWORD》"
 echo ""
-echo "1. 【标题】⭐ 豆瓣评分：X.X"
-echo "   🔗 https://pan.baidu.com/s/xxx"
+echo "1. 标题：xxx"
+echo "   豆瓣评分：8.2 / 暂无评分"
+echo "   百度网盘：https://pan.baidu.com/s/xxx"
+echo "   提取码：1234 / 无"
+echo "   更新时间：2026-03-10 / 未知"
 echo ""
 echo "... (共 X 条链接)"
 echo ""
