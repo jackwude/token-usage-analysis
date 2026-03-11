@@ -103,7 +103,7 @@ INSTALL_STATE="$SKILL_DIR/.installed"
 cat > "$INSTALL_STATE" << EOF
 installed_at=$(date -Iseconds)
 os=$OS
-version=1.0.0
+version=1.1.0
 EOF
 
 echo ""
