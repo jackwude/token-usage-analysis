@@ -1,8 +1,8 @@
 name: token-usage-analysis
-version: 1.0.0
-description: OpenClaw Token 用量分析工具 - 自动收集 + 智能分析
+version: 1.1.0
+description: OpenClaw Token 用量分析工具 - 自动收集 + 对话式分析
 author: 麻辣小龙虾 🦞
-homepage: https://github.com/openclaw/clawhub-skills
+homepage: https://github.com/jackwude/token-usage-analysis
 
 # 安装配置
 install:
@@ -75,6 +75,14 @@ compatibility:
 
 # 更新日志
 changelog:
+  - version: 1.1.0
+    date: 2026-03-11
+    changes:
+      - 重构为对话优先的 Token 用量分析 Skill
+      - 固化五段式结果输出模板
+      - 新增 7 天文本柱状图
+      - 新增异常提示与一句话判断
+      - README 与文档同步到最新逻辑
   - version: 1.0.0
     date: 2026-03-09
     changes:
