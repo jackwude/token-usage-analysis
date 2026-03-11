@@ -139,6 +139,15 @@ Reactions are lightweight social signals. Humans use them constantly — they sa
 
 Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes (camera names, SSH details, voice preferences) in `TOOLS.md`.
 
+## Self-Improving Mode
+
+Current mode: Passive
+
+Available modes:
+- Passive: 仅在用户明确纠正或明确要求“记住”时写入
+- Active: 发现重复模式后，主动提议固化为规则
+- Strict: 每次写入前都先向用户确认
+
 **🎭 Voice Storytelling:** If you have `sag` (ElevenLabs TTS), use voice for stories, movie summaries, and "storytime" moments! Way more engaging than walls of text. Surprise people with funny voices.
 
 **📝 Platform Formatting:**
