@@ -11,13 +11,10 @@ from collections import defaultdict
 
 log_path = os.path.expanduser('~/.openclaw/logs/session-usage.log')
 
-# 匹配日志行（带 agent 字段的格式）
-# 兼容 cost=NA（当成本口径不可用或被禁用时）
 rx = re.compile(r'^(?P<ts>[^ ]+) \| agent=(?P<agent>[^ ]+) \| session=(?P<session>[^ ]+) \| model=(?P<model>[^ ]+) \| tokens_in=(?P<tin>\d+) \| tokens_out=(?P<tout>\d+) \| cost=\$(?P<cost>(?:[0-9.]+|NA)) ')
 
 
 def parse_iso(ts: str) -> datetime:
-    """解析 ISO 时间戳，返回 naive datetime"""
     dt = datetime.fromisoformat(ts)
     if dt.tzinfo is not None:
         dt = dt.replace(tzinfo=None)
@@ -25,7 +22,6 @@ def parse_iso(ts: str) -> datetime:
 
 
 def get_time_range(choice: str) -> tuple:
-    """根据用户选择返回时间范围 (start, end, label)"""
     now = datetime.now()
 
     if choice == '1' or choice == '24h':
@@ -46,7 +42,6 @@ def get_time_range(choice: str) -> tuple:
     elif choice == '4' or choice == 'weekend':
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         weekday = today.weekday()
-
         if weekday == 6:
             sun = today - timedelta(days=1)
             sat = today - timedelta(days=2)
@@ -56,7 +51,6 @@ def get_time_range(choice: str) -> tuple:
         else:
             sun = today - timedelta(days=(weekday + 1))
             sat = sun - timedelta(days=1)
-
         start = sat
         end = sun.replace(hour=23, minute=59, second=59)
         label = f"上周末 ({sat.strftime('%m/%d')} 周六 ~ {sun.strftime('%m/%d')} 周日)"
@@ -68,7 +62,6 @@ def get_time_range(choice: str) -> tuple:
         this_monday = today - timedelta(days=weekday)
         last_monday = this_monday - timedelta(days=7)
         last_sunday = last_monday + timedelta(days=6)
-
         start = last_monday
         end = last_sunday.replace(hour=23, minute=59, second=59)
         label = f"上周 ({last_monday.strftime('%m/%d')} ~ {last_sunday.strftime('%m/%d')})"
@@ -79,7 +72,6 @@ def get_time_range(choice: str) -> tuple:
         start_str = input().strip()
         print("请输入结束日期 (YYYY-MM-DD): ", end='')
         end_str = input().strip()
-
         try:
             start = datetime.strptime(start_str, '%Y-%m-%d')
             end = datetime.strptime(end_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
@@ -94,16 +86,38 @@ def get_time_range(choice: str) -> tuple:
         sys.exit(1)
 
 
-def build_observations(agent_summary, peak_date, peak_date_total, grand_total, cost_anomalies):
-    observations = []
+def format_millions(value: int) -> str:
+    return f"{value / 1_000_000:.2f}M"
 
+
+def build_bar_chart(date_totals, end: datetime, days: int = 7, width: int = 32):
+    start_day = (end - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    points = []
+    for i in range(days):
+        day = start_day + timedelta(days=i)
+        date_str = day.strftime('%Y-%m-%d')
+        total = int(date_totals.get(date_str, 0))
+        points.append((day.strftime('%m-%d'), total))
+
+    max_total = max((total for _, total in points), default=0)
+    lines = []
+    for label, total in points:
+        if max_total <= 0 or total <= 0:
+            bar = '▏'
+        else:
+            bar_len = max(1, round(total / max_total * width))
+            bar = '█' * bar_len
+        lines.append(f"{label} | {bar} {format_millions(total)}")
+    return lines
+
+
+def build_observations(agent_summary, peak_date, peak_date_total, cost_anomalies):
+    observations = []
     if agent_summary:
         top_agent = agent_summary[0]
         observations.append(f"用量高度集中在 {top_agent['agent']}（{top_agent['share']:.1f}%）")
-
     if peak_date:
         observations.append(f"峰值日期是 {peak_date}，单日消耗 {peak_date_total:,} Token")
-
     if cost_anomalies:
         observations.append(f"发现成本异常：{cost_anomalies[0]}")
     elif len(agent_summary) > 1:
@@ -111,14 +125,12 @@ def build_observations(agent_summary, peak_date, peak_date_total, grand_total, c
         observations.append(f"第二名是 {second_agent['agent']}，占比 {second_agent['share']:.1f}%")
     else:
         observations.append("当前用量主要由单一 Agent 构成")
-
     return observations[:3]
 
 
 def build_judgement(agent_summary, peak_date, cost_anomalies):
     if not agent_summary:
         return "当前时间范围内没有足够数据，暂时无法判断整体消耗模式。"
-
     top_agent = agent_summary[0]['agent']
     if cost_anomalies:
         return f"该时间段属于 {top_agent} 主导的消耗模式，且存在成本异常，建议优先排查 cost 口径。"
@@ -128,24 +140,19 @@ def build_judgement(agent_summary, peak_date, cost_anomalies):
 
 
 def analyze_usage(start: datetime, end: datetime, label: str) -> str:
-    """分析指定时间范围内的用量数据，返回格式化报告"""
-
     if not os.path.exists(log_path):
         return f"❌ 日志文件不存在：{log_path}"
 
     session_daily = defaultdict(list)
-
     with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
             line = line.strip()
             m = rx.match(line)
             if not m:
                 continue
-
             ts = parse_iso(m['ts'])
             if ts < start or ts > end:
                 continue
-
             agent = m['agent']
             session = m['session']
             tin = int(m['tin'])
@@ -159,19 +166,15 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     for (agent, session, date_str), snapshots in session_daily.items():
         if len(snapshots) < 2:
             continue
-
         snapshots.sort(key=lambda x: x[0])
         first = snapshots[0]
         last = snapshots[-1]
-
         delta_in = max(last[1] - first[1], 0)
         delta_out = max(last[2] - first[2], 0)
-
         if first[3] is not None and last[3] is not None:
             delta_cost = max(last[3] - first[3], 0.0)
             agent_daily[agent][date_str]['cost'] += delta_cost
             agent_daily[agent][date_str]['cost_known'] = True
-
         agent_daily[agent][date_str]['total_in'] += delta_in
         agent_daily[agent][date_str]['total_out'] += delta_out
         agent_daily[agent][date_str]['sessions'].add(session)
@@ -187,6 +190,8 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
             f"- 异常提示：无明显异常\n\n"
             f"【Agent 明细】\n"
             f"- 当前时间范围内没有检测到有效数据\n\n"
+            f"【7 天趋势图】\n"
+            f"- 暂无趋势数据\n\n"
             f"【关键观察】\n"
             f"- 该时间段内没有检测到有效的用量增量数据\n"
             f"- 可能是日志未运行、session 无变化，或时间范围过窄\n"
@@ -203,7 +208,6 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     grand_total_out = 0
     grand_cost = 0.0
     any_cost_known = False
-    all_sessions = set()
 
     for agent in sorted(agent_daily.keys()):
         total_in = 0
@@ -211,27 +215,22 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
         total_cost = 0.0
         cost_known = False
         sessions = set()
-
         for date_str, data in agent_daily[agent].items():
             total_in += data['total_in']
             total_out += data['total_out']
             total_cost += data['cost']
             cost_known = cost_known or data['cost_known']
             sessions.update(data['sessions'])
-
             day_total = data['total_in'] + data['total_out']
             date_totals[date_str] += day_total
             if data['cost_known']:
                 date_costs[date_str] += data['cost']
                 date_cost_known[date_str] = True
-
         total = total_in + total_out
         grand_total_in += total_in
         grand_total_out += total_out
         grand_cost += total_cost
         any_cost_known = any_cost_known or cost_known
-        all_sessions.update(sessions)
-
         agent_summary.append({
             'agent': agent,
             'token': total,
@@ -244,7 +243,6 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     grand_total = grand_total_in + grand_total_out
     for item in agent_summary:
         item['share'] = (item['token'] / grand_total * 100) if grand_total > 0 else 0.0
-
     agent_summary.sort(key=lambda x: x['token'], reverse=True)
 
     top_agent_text = "无"
@@ -266,8 +264,9 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
             cost_anomalies.append(f"{date_str} cost 偏高（${cost:.2f} / {total:,} Token）")
 
     anomaly_text = cost_anomalies[0] if cost_anomalies else "无明显异常"
-    observations = build_observations(agent_summary, peak_date, peak_date_total, grand_total, cost_anomalies)
+    observations = build_observations(agent_summary, peak_date, peak_date_total, cost_anomalies)
     judgement = build_judgement(agent_summary, peak_date, cost_anomalies)
+    chart_lines = build_bar_chart(date_totals, end, days=7)
 
     lines = []
     lines.append(f"📊 Token 用量分析（{label}）")
@@ -280,7 +279,6 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     lines.append(f"- 异常提示：{anomaly_text}")
     lines.append("")
     lines.append("【Agent 明细】")
-
     for idx, item in enumerate(agent_summary, start=1):
         lines.append(f"{idx}. {item['agent']}")
         lines.append(f"   - Token：{item['token']:,}")
@@ -288,14 +286,15 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
         lines.append(f"   - Sessions：{item['sessions']}")
         lines.append(f"   - 占比：{item['share']:.1f}%")
         lines.append("")
-
+    lines.append("【7 天趋势图】")
+    lines.extend(chart_lines)
+    lines.append("")
     lines.append("【关键观察】")
     for obs in observations:
         lines.append(f"- {obs}")
     lines.append("")
     lines.append("【一句话判断】")
     lines.append(judgement)
-
     return "\n".join(lines)
 
 
