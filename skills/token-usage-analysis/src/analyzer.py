@@ -1,90 +1,86 @@
 #!/usr/bin/env python3
 """
 Token Usage Analysis Script
-分析 OpenClaw Token 用量日志，支持多种时间范围选择
+分析 OpenClaw Token 用量日志，按固定模板输出结果。
 """
-import os, re, sys
+import os
+import re
+import sys
 from datetime import datetime, timedelta
 from collections import defaultdict
 
 log_path = os.path.expanduser('~/.openclaw/logs/session-usage.log')
 
 # 匹配日志行（带 agent 字段的格式）
-rx = re.compile(r'^(?P<ts>[^ ]+) \| agent=(?P<agent>[^ ]+) \| session=(?P<session>[^ ]+) \| model=(?P<model>[^ ]+) \| tokens_in=(?P<tin>\d+) \| tokens_out=(?P<tout>\d+) \| cost=\$(?P<cost>[0-9.]+) ')
+rx = re.compile(
+    r'^(?P<ts>[^ ]+) \| agent=(?P<agent>[^ ]+) \| session=(?P<session>[^ ]+) '
+    r'\| model=(?P<model>[^ ]+) \| tokens_in=(?P<tin>\d+) \| tokens_out=(?P<tout>\d+) '
+    r'\| cost=\$(?P<cost>[0-9.]+) '
+)
+
 
 def parse_iso(ts: str) -> datetime:
-    """解析 ISO 时间戳，返回 naive datetime"""
     dt = datetime.fromisoformat(ts)
     if dt.tzinfo is not None:
         dt = dt.replace(tzinfo=None)
     return dt
 
+
 def get_time_range(choice: str) -> tuple:
-    """根据用户选择返回时间范围 (start, end, label)"""
     now = datetime.now()
-    
+
     if choice == '1' or choice == '24h':
-        # 过去 24 小时
         start = now - timedelta(hours=24)
         label = "过去 24 小时"
         return (start, now, label)
-    
+
     elif choice == '2' or choice == '7d':
-        # 过去 7 天
         start = now - timedelta(days=7)
         label = "过去 7 天"
         return (start, now, label)
-    
+
     elif choice == '3' or choice == '30d':
-        # 过去 30 天
         start = now - timedelta(days=30)
         label = "过去 30 天"
         return (start, now, label)
-    
+
     elif choice == '4' or choice == 'weekend':
-        # 上周末（最近一个周六 + 周日）
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        weekday = today.weekday()  # 0=周一，6=周日
-        
-        if weekday == 6:  # 今天是周日，上周末是昨天 + 前天
+        weekday = today.weekday()
+
+        if weekday == 6:
             sun = today - timedelta(days=1)
             sat = today - timedelta(days=2)
-        elif weekday == 5:  # 今天是周六，上周末是今天 + 昨天
+        elif weekday == 5:
             sun = today
             sat = today - timedelta(days=1)
-        else:  # 周一到周五，上周末是上周六 + 周日
+        else:
             sun = today - timedelta(days=(weekday + 1))
             sat = sun - timedelta(days=1)
-        
+
         start = sat
         end = sun.replace(hour=23, minute=59, second=59)
         label = f"上周末 ({sat.strftime('%m/%d')} 周六 ~ {sun.strftime('%m/%d')} 周日)"
         return (start, end, label)
-    
+
     elif choice == '5' or choice == 'last_week':
-        # 上周（周一到周日）
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         weekday = today.weekday()
-        
-        # 本周一
         this_monday = today - timedelta(days=weekday)
-        # 上周一
         last_monday = this_monday - timedelta(days=7)
-        # 上周日
         last_sunday = last_monday + timedelta(days=6)
-        
+
         start = last_monday
         end = last_sunday.replace(hour=23, minute=59, second=59)
         label = f"上周 ({last_monday.strftime('%m/%d')} ~ {last_sunday.strftime('%m/%d')})"
         return (start, end, label)
-    
+
     elif choice == '6' or choice == 'custom':
-        # 自定义日期范围（需要用户输入）
         print("请输入起始日期 (YYYY-MM-DD): ", end='')
         start_str = input().strip()
         print("请输入结束日期 (YYYY-MM-DD): ", end='')
         end_str = input().strip()
-        
+
         try:
             start = datetime.strptime(start_str, '%Y-%m-%d')
             end = datetime.strptime(end_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
@@ -93,164 +89,232 @@ def get_time_range(choice: str) -> tuple:
         except ValueError as e:
             print(f"日期格式错误：{e}")
             sys.exit(1)
-    
+
     else:
         print(f"未知选项：{choice}")
         sys.exit(1)
 
-def analyze_usage(start: datetime, end: datetime, label: str) -> str:
-    """分析指定时间范围内的用量数据，返回格式化报告"""
-    
+
+def collect_usage(start: datetime, end: datetime):
     if not os.path.exists(log_path):
-        return f"❌ 日志文件不存在：{log_path}"
-    
-    # 按 (agent, session, date) 分组
+        return None, f"❌ 日志文件不存在：{log_path}"
+
     session_daily = defaultdict(list)
-    
+
     with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
             line = line.strip()
             m = rx.match(line)
             if not m:
                 continue
-            
+
             ts = parse_iso(m['ts'])
             if ts < start or ts > end:
                 continue
-            
+
             agent = m['agent']
             session = m['session']
             tin = int(m['tin'])
             tout = int(m['tout'])
             cost = float(m['cost'])
-            
             date_str = ts.strftime('%Y-%m-%d')
             session_daily[(agent, session, date_str)].append((ts, tin, tout, cost))
-    
-    # 计算每个 agent 每天的增量
-    agent_daily = defaultdict(lambda: defaultdict(lambda: {'total_in': 0, 'total_out': 0, 'cost': 0.0, 'sessions': set()}))
-    
-    for (agent, session, date_str), snapshots in session_daily.items():
+
+    agent_daily = defaultdict(lambda: defaultdict(lambda: {
+        'total_in': 0,
+        'total_out': 0,
+        'cost': 0.0,
+        'sessions': set(),
+    }))
+
+    raw_cost_daily = defaultdict(float)
+    raw_cost_agent = defaultdict(float)
+    raw_cost_total = 0.0
+
+    for snapshots in session_daily.values():
+        for _, _, _, cost in snapshots:
+            raw_cost_total += cost
+
+    for (agent, _session, date_str), snapshots in session_daily.items():
+        day_snapshot_cost = sum(item[3] for item in snapshots)
+        raw_cost_daily[date_str] += day_snapshot_cost
+        raw_cost_agent[agent] += day_snapshot_cost
+
         if len(snapshots) < 2:
             continue
-        
+
         snapshots.sort(key=lambda x: x[0])
         first = snapshots[0]
         last = snapshots[-1]
-        
-        delta_in = last[1] - first[1]
-        delta_out = last[2] - first[2]
-        delta_cost = last[3] - first[3]
-        
-        if delta_in < 0: delta_in = 0
-        if delta_out < 0: delta_out = 0
-        if delta_cost < 0: delta_cost = 0.0
-        
+
+        delta_in = max(0, last[1] - first[1])
+        delta_out = max(0, last[2] - first[2])
+        delta_cost = max(0.0, last[3] - first[3])
+
         agent_daily[agent][date_str]['total_in'] += delta_in
         agent_daily[agent][date_str]['total_out'] += delta_out
         agent_daily[agent][date_str]['cost'] += delta_cost
-        agent_daily[agent][date_str]['sessions'].add(session)
-    
-    # 生成报告
+        agent_daily[agent][date_str]['sessions'].add(_session)
+
+    if not agent_daily and raw_cost_total <= 0:
+        return None, "⚠️ 该时间段内没有检测到有效的用量数据"
+
+    return {
+        'agent_daily': agent_daily,
+        'raw_cost_daily': raw_cost_daily,
+        'raw_cost_agent': raw_cost_agent,
+        'raw_cost_total': raw_cost_total,
+    }, None
+
+
+def fmt_million(n: int) -> str:
+    return f"{n / 1_000_000:.2f}M"
+
+
+def build_trend_lines(daily_totals: dict) -> list:
+    if not daily_totals:
+        return ["- 无数据"]
+
+    max_total = max(daily_totals.values()) if daily_totals else 0
     lines = []
-    lines.append("=" * 70)
-    lines.append(f"🦞 Token 用量汇总分析（{label}）")
-    lines.append("=" * 70)
+    for date_str in sorted(daily_totals.keys()):
+        total = daily_totals[date_str]
+        label = date_str[5:]
+        if max_total <= 0:
+            bar = "█"
+        else:
+            bar_len = max(1, round(total / max_total * 32)) if total > 0 else 1
+            bar = "█" * bar_len
+        lines.append(f"{label} | {bar} {fmt_million(total)}")
+    return lines
+
+
+def build_observations(agent_totals: dict, daily_totals: dict, peak_date: str, anomalies: list) -> list:
+    observations = []
+
+    grand_total = sum(agent_totals.values())
+    if agent_totals and grand_total > 0:
+        top_agent, top_total = max(agent_totals.items(), key=lambda x: x[1])
+        pct = top_total / grand_total * 100
+        observations.append(f"用量主要集中在 {top_agent}（{pct:.1f}%）")
+
+    if peak_date and peak_date in daily_totals:
+        observations.append(f"峰值出现在 {peak_date}（{fmt_million(daily_totals[peak_date])}）")
+
+    if anomalies:
+        observations.append(anomalies[0])
+    else:
+        observations.append("未发现明显异常波动")
+
+    return observations[:3]
+
+
+def build_one_liner(label: str, top_agent: str, peak_date: str, anomalies: list) -> str:
+    if anomalies:
+        return f"{label} 的用量主要集中在 {top_agent}，峰值在 {peak_date}，并存在异常信号，建议顺手核查。"
+    return f"{label} 的用量主要集中在 {top_agent}，整体分布清晰，暂无明显异常。"
+
+
+def analyze_usage(start: datetime, end: datetime, label: str) -> str:
+    data, err = collect_usage(start, end)
+    if err:
+        return err
+
+    agent_daily = data['agent_daily']
+    raw_cost_daily = data['raw_cost_daily']
+    raw_cost_total = data['raw_cost_total']
+
+    agent_totals = {}
+    agent_costs = {}
+    agent_sessions = {}
+    daily_totals = defaultdict(int)
+    daily_costs = defaultdict(float)
+
+    for agent, daily_map in agent_daily.items():
+        total_in = sum(d['total_in'] for d in daily_map.values())
+        total_out = sum(d['total_out'] for d in daily_map.values())
+        total_cost = sum(d['cost'] for d in daily_map.values())
+        sessions = set()
+        for date_str, d in daily_map.items():
+            day_total = d['total_in'] + d['total_out']
+            daily_totals[date_str] += day_total
+            daily_costs[date_str] += d['cost']
+            sessions.update(d['sessions'])
+
+        agent_totals[agent] = total_in + total_out
+        agent_costs[agent] = total_cost
+        agent_sessions[agent] = len(sessions)
+
+    grand_total = sum(agent_totals.values())
+    grand_cost = sum(agent_costs.values())
+    all_sessions = sum(agent_sessions.values())
+
+    top_agent = max(agent_totals.items(), key=lambda x: x[1])[0] if agent_totals else "无"
+    top_agent_pct = (agent_totals[top_agent] / grand_total * 100) if grand_total > 0 and top_agent != "无" else 0.0
+    peak_date = max(daily_totals.items(), key=lambda x: x[1])[0] if daily_totals else "无"
+
+    anomalies = []
+    for date_str in sorted(set(list(daily_totals.keys()) + list(raw_cost_daily.keys()))):
+        token = daily_totals.get(date_str, 0)
+        raw_cost = raw_cost_daily.get(date_str, 0.0)
+        calc_cost = daily_costs.get(date_str, 0.0)
+        if token == 0 and raw_cost > 0:
+            anomalies.append(f"{date_str} Token 为 0，但日志中存在费用记录")
+            break
+        if token > 0 and calc_cost / max(token, 1) > 0.0005:
+            anomalies.append(f"{date_str} Cost 相对 Token 偏高，建议核查 cost 口径")
+            break
+
+    if not anomalies and grand_total == 0 and raw_cost_total > 0:
+        anomalies.append("当前区间内未统计到 Token 增量，但存在费用记录")
+
+    lines = []
+    lines.append(f"📊 Token 用量分析（{label}）")
     lines.append("")
-    
-    if not agent_daily:
-        lines.append("⚠️  该时间段内没有检测到有效的用量增量数据")
-        lines.append("   可能原因：")
-        lines.append("   1. 日志记录在该时间段未运行")
-        lines.append("   2. session 文件在该时间段没有变化")
-        lines.append("   3. 时间范围选择错误")
+    lines.append("【结论】")
+    lines.append(f"- 总 Token：{grand_total:,}")
+    lines.append(f"- 总 Cost：${grand_cost:.4f}" if grand_cost > 0 else "- 总 Cost：不可用")
+    lines.append(f"- 主消耗 Agent：{top_agent}（{top_agent_pct:.1f}%）" if top_agent != "无" else "- 主消耗 Agent：无")
+    lines.append(f"- 峰值日期：{peak_date}")
+    lines.append(f"- 异常提示：{anomalies[0]}" if anomalies else "- 异常提示：无明显异常")
+    lines.append("")
+    lines.append("【Agent 明细】")
+
+    if agent_totals:
+        sorted_agents = sorted(agent_totals.items(), key=lambda x: x[1], reverse=True)
+        for idx, (agent, token_total) in enumerate(sorted_agents, start=1):
+            pct = (token_total / grand_total * 100) if grand_total > 0 else 0.0
+            lines.append(f"{idx}. {agent}")
+            lines.append(f"   - Token：{token_total:,}")
+            lines.append(f"   - Cost：${agent_costs[agent]:.4f}" if agent_costs[agent] > 0 else "   - Cost：不可用")
+            lines.append(f"   - Sessions：{agent_sessions[agent]}")
+            lines.append(f"   - 占比：{pct:.1f}%")
+            lines.append("")
+    else:
+        lines.append("1. 无有效 Agent 数据")
+        lines.append("   - Token：0")
+        lines.append("   - Cost：不可用")
+        lines.append("   - Sessions：0")
+        lines.append("   - 占比：0.0%")
         lines.append("")
-        return "\n".join(lines)
-    
-    # 按 agent 输出
-    grand_total_in = 0
-    grand_total_out = 0
-    grand_cost = 0.0
-    all_sessions = set()
-    
-    for agent in sorted(agent_daily.keys()):
-        daily_data = agent_daily[agent]
-        lines.append(f"📊 Agent: {agent}")
-        lines.append("-" * 60)
-        
-        weekend_total_in = 0
-        weekend_total_out = 0
-        weekend_cost = 0.0
-        weekend_sessions = set()
-        
-        for date_str in sorted(daily_data.keys()):
-            data = daily_data[date_str]
-            total = data['total_in'] + data['total_out']
-            session_count = len(data['sessions'])
-            
-            # 格式化日期显示（带星期）
-            try:
-                date_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                weekday_map = ['一', '二', '三', '四', '五', '六', '日']
-                date_display = f"{date_str} (周{weekday_map[date_obj.weekday()]})"
-            except:
-                date_display = date_str
-            
-            lines.append(f"  📅 {date_display}:")
-            lines.append(f"     Token: {total:,} (in={data['total_in']:,}, out={data['total_out']:,})")
-            lines.append(f"     Cost:  ${data['cost']:.4f}")
-            lines.append(f"     Sessions: {session_count}")
-            
-            weekend_total_in += data['total_in']
-            weekend_total_out += data['total_out']
-            weekend_cost += data['cost']
-            weekend_sessions.update(data['sessions'])
-        
-        lines.append("")
-        lines.append(f"  📈 合计:")
-        weekend_total = weekend_total_in + weekend_total_out
-        lines.append(f"     Token: {weekend_total:,} (in={weekend_total_in:,}, out={weekend_total_out:,})")
-        lines.append(f"     Cost:  ${weekend_cost:.4f}")
-        lines.append(f"     Sessions: {len(weekend_sessions)}")
-        lines.append("")
-        
-        grand_total_in += weekend_total_in
-        grand_total_out += weekend_total_out
-        grand_cost += weekend_cost
-        all_sessions.update(weekend_sessions)
-    
-    # 总体汇总
-    lines.append("=" * 70)
-    lines.append("📊 总计（所有 Agent）")
-    lines.append("-" * 60)
-    
-    grand_total = grand_total_in + grand_total_out
-    lines.append(f"总 Token: {grand_total:,} (in={grand_total_in:,}, out={grand_total_out:,})")
-    lines.append(f"总 Cost: ${grand_cost:.4f}")
-    lines.append(f"总 Sessions: {len(all_sessions)}")
-    lines.append(f"Agent 数量：{len(agent_daily)}")
-    
-    # 用量分布
-    if len(agent_daily) > 1:
-        lines.append("")
-        lines.append("💡 用量分布:")
-        # 先计算每个 agent 的总量，再排序
-        agent_totals = []
-        for agent in agent_daily.keys():
-            agent_total = sum(d['total_in'] + d['total_out'] for d in agent_daily[agent].values())
-            agent_totals.append((agent, agent_total))
-        agent_totals.sort(key=lambda x: x[1], reverse=True)
-        
-        for agent, agent_total in agent_totals:
-            percentage = (agent_total / grand_total * 100) if grand_total > 0 else 0
-            lines.append(f"- {agent}: {percentage:.1f}%")
-    
-    lines.append("=" * 70)
-    
+
+    lines.append("【趋势图】")
+    lines.extend(build_trend_lines(daily_totals))
+    lines.append("")
+
+    lines.append("【关键观察】")
+    observations = build_observations(agent_totals, daily_totals, peak_date, anomalies)
+    for item in observations:
+        lines.append(f"- {item}")
+    lines.append("")
+
+    lines.append("【一句话判断】")
+    lines.append(build_one_liner(label, top_agent, peak_date, anomalies))
+
     return "\n".join(lines)
 
+
 def print_menu():
-    """打印时间范围选择菜单"""
     print("""
 请选择时间范围：
 1. 过去 24 小时
@@ -262,12 +326,11 @@ def print_menu():
 
 请输入选项编号 (1-6): """, end='')
 
+
 if __name__ == '__main__':
-    # 检查是否通过命令行参数指定时间范围
     if len(sys.argv) > 1:
         choice = sys.argv[1]
         if choice == 'custom' and len(sys.argv) >= 4:
-            # 命令行自定义：python analyze_usage.py custom 2026-03-07 2026-03-08
             start_str = sys.argv[2]
             end_str = sys.argv[3]
             try:
@@ -283,7 +346,6 @@ if __name__ == '__main__':
             start, end, label = get_time_range(choice)
             print(analyze_usage(start, end, label))
     else:
-        # 交互式模式
         print_menu()
         choice = input().strip()
         start, end, label = get_time_range(choice)

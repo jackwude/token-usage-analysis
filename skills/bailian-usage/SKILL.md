@@ -106,8 +106,13 @@ mkdir -p ~/.openclaw/chrome-profiles/bailian
 - "查百炼额度" → 调用本 Skill
 - "看看阿里云还剩多少额度" → 调用本 Skill
 - "百炼用量情况" → 调用本 Skill
-- "查 Token" → 调用本 Skill
+- "百炼 Token" → 调用本 Skill
 - "百炼套餐用量" → 调用本 Skill
+
+## 边界说明
+
+- 本 Skill **只负责阿里云百炼 / Coding Plan / 套餐 / 额度 / 百炼 Token** 相关查询。
+- 像“查 Token 用量”“Token 消耗”“过去 24 小时 Token 用量”这类**未明确提到百炼**的说法，**不应**由本 Skill 处理，应转交 `token-usage-analysis`。
 
 ## 相关文件
 

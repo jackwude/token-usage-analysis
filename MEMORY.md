@@ -16,7 +16,9 @@
   - "找一下 XXX 的网盘资源" → 同上
   - "帮我搜 XXX，要带评分" → 同上
   - "查一下百炼套餐用量" / "看看阿里云还剩多少额度" / "百炼用量情况" / "查百炼额度" / "百炼用量" → 调用 `bailian-usage` Skill，通过浏览器登录阿里云百炼控制台，查询 Coding Plan 套餐用量和有效期（套餐状态、剩余天数、用量消耗百分比、刷新时间）
-  - "查 Token" / "Token 用量" / "Token 消耗" → **仅查 OpenClaw/阿里云百炼 API 的 Token 用量**，不管 codexbar（Cursor 编辑器）的 Token
+  - "查 Token 用量" / "Token 用量" / "Token 消耗" / "查过去24小时的 Token 用量" → 默认调用 `token-usage-analysis` Skill，查询 OpenClaw / Agent / 会话级别的 Token 用量
+  - "查 Token" 这类模糊说法，不要默认理解为百炼；若上下文未明确提到百炼，则优先按 `token-usage-analysis` 处理
+  - "百炼 Token" / "百炼用量" / "百炼额度" / "阿里云百炼" / "Coding Plan" / "百炼套餐用量" → 调用 `bailian-usage` Skill
 - **Skill 执行透明度**：执行任何 Skill 时，必须主动告知用户正在使用的是哪个 Skill（例如"📚 正在使用 `gying-search` Skill..."），保持操作透明。
 - **百炼用量回复格式**：精简版，去掉 API 配置信息，但保留用量消耗的刷新时间。
 - **搜索工具优先级**：信息查询任务默认“自动选择”——优先用 `tavily-skill` 做实时搜索；如果 Tavily 额度/Key 不可用或报配额耗尽，则自动切换到 `mcporter + Exa MCP`（Agent Reach 的全网语义搜索）；只需读单页内容时用 `web_fetch`；需要交互操作/登录时再用 `browser`。
