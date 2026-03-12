@@ -1,117 +1,154 @@
-# Task Notify - 任务通知系统
-
-## 目的
-确保所有长时间任务完成后主动通知用户，避免"做完就消失"的问题。
-
-## 使用场景
-- exec 后台命令（>30 秒）
-- 浏览器自动化任务
-- 子代理任务
-- 文件处理/转录/下载等耗时操作
-
-## 执行流程
-
-### 1️⃣ 任务开始时
-```markdown
-🦞 **任务已启动**
-- 任务：[描述]
-- 预计时长：[X 分钟/小时]
-- 开始时间：[HH:MM]
-- 状态：进行中...
-```
-
-### 2️⃣ 进度更新（每 25% 或每 5 分钟）
-```markdown
-📊 **进度更新**
-- 任务：[描述]
-- 进度：[25%/50%/75%]
-- 已用时间：[X 分钟]
-- 预计剩余：[Y 分钟]
-```
-
-### 3️⃣ 任务完成时
-```markdown
-✅ **任务完成**
-- 任务：[描述]
-- 总耗时：[X 分钟]
-- 结果：[成功/失败]
-- 输出：[文件路径/链接/摘要]
-- 下一步：[建议操作]
-```
-
-### 4️⃣ 任务失败时
-```markdown
-❌ **任务失败**
-- 任务：[描述]
-- 错误原因：[详细说明]
-- 已尝试：[解决步骤]
-- 建议：[用户可采取的行动]
-```
-
-## 技术实现
-
-### exec 后台任务
-```javascript
-// 启动时通知
-exec({ command: "...", background: true, yieldMs: 60000 })
-
-// 轮询检查
-process({ action: "poll", sessionId: "...", timeout: 30000 })
-
-// 完成后通知
-message.send({ message: "✅ 任务完成：..." })
-```
-
-### 子代理任务
-```javascript
-// 使用 thread: true 确保结果推送回主会话
-sessions_spawn({
-  task: "...",
-  mode: "session",
-  thread: true,
-  label: "任务名称"
-})
-
-// 子代理内部也要用 message.send 主动汇报
-```
-
-### 状态跟踪文件
-创建 `.openclaw/workspace/task-state.json`：
-```json
-{
-  "activeTasks": [
-    {
-      "id": "task-001",
-      "name": "视频转录",
-      "started": 1709456789,
-      "status": "running",
-      "progress": 45
-    }
-  ],
-  "completedTasks": [...]
-}
-```
-
-## 最佳实践
-
-1. **始终通知**：无论任务多小，完成后都要回复
-2. **估算时间**：开始前给出合理的时间预估
-3. **定期更新**：超过 5 分钟的任务，至少每 2-3 分钟汇报一次
-4. **错误透明**：失败时详细说明原因和解决方案
-5. **结果清晰**：完成时说明输出在哪里、如何使用
-
-## 特殊情况
-
-### 超时处理
-- 设置合理的 timeoutSeconds
-- 超时时主动通知并说明原因
-- 提供重试或替代方案
-
-### 用户离开/连接断开
-- 任务完成后仍要发送通知
-- 使用 message.send 确保消息进入队列
-- 用户返回时能看到完整历史
-
+---
+name: task-notify
+description: Ensure long-running tasks actively notify the user instead of going silent. Use when handling work that may take more than ~30 seconds, especially exec background jobs, browser automation, sub-agent runs, downloads, file processing, transcription, or any task where the user might otherwise wonder whether work is still progressing.
 ---
 
-**核心原则**：用户永远不应该问"任务做完了吗？"——你应该主动告诉他们。
+# Task Notify
+
+Use this skill to keep long-running work visible without creating noisy updates or large token overhead.
+
+## Core rule
+
+For any task likely to take **>30 seconds**:
+1. Send a **start** update immediately.
+2. Send **progress** updates only on meaningful milestones.
+3. Send a **finish** update on success or failure.
+
+Do not make the user ask whether the task is still running.
+
+## Default cadence (low-cost mode)
+
+Use the lightest acceptable cadence:
+- **Start:** always
+- **Progress:** every **2-3 minutes** at most, or at **25% / 50% / 75%**, whichever is more natural
+- **Finish:** always
+
+Avoid high-frequency updates. If nothing meaningful changed, do not send a progress message.
+
+## Message shapes
+
+Keep notifications short and concrete.
+
+### Start
+- task
+- ETA range
+- next update cadence
+
+Example:
+```text
+🦞 任务已启动：正在整理 120 个文件，预计 5–10 分钟；我会每 2–3 分钟同步一次进度。
+```
+
+### Progress
+- what changed
+- elapsed time
+- next expected checkpoint
+
+Example:
+```text
+📊 进度更新：已完成约 50%（前 60 个文件已处理），已用 3 分钟；下一次在完成剩余扫描或 2–3 分钟后同步。
+```
+
+### Finish
+- success/failure
+- total time
+- useful result summary
+- next step when relevant
+
+Example:
+```text
+✅ 已完成：共处理 120 个文件，耗时 7 分钟；结果已输出到 `out/report.json`。
+```
+
+## Task types
+
+### 1) exec background jobs
+
+For long shell commands:
+- prefer wrapping with `scripts/longtask-run.sh`
+- use a short label
+- poll calmly; do not spam `process poll`
+- forward heartbeat lines as compact human updates only when enough time has passed
+
+Pattern:
+```bash
+scripts/longtask-run.sh --interval 150 label "build index" -- <command...>
+```
+
+Use `scripts/task-notify-state.py` to create/update/finish a local task-state entry when useful.
+
+### 2) browser automation
+
+Do **not** create progress updates by taking extra snapshots/screenshots just for status.
+
+Instead:
+- notify at workflow boundaries
+- examples: "已登录", "已进入结果页", "正在下载", "正在整理结果"
+- close non-essential tabs at the end unless the user asked to keep them
+
+### 3) sub-agent runs
+
+Do not assume sub-agents will naturally notify well.
+
+When spawning a sub-agent for work that may take time:
+- tell the user the sub-agent was launched
+- state the expected duration
+- ask the sub-agent to report only **major milestones** and the final result
+- prefer **main-agent relay** over frequent direct chatter from the sub-agent
+
+Use wording like:
+```text
+已启动子代理处理该任务；预计 10–20 分钟。我会在关键节点同步，不会刷屏。
+```
+
+### 4) mixed workflows
+
+If a task includes browser + shell + sub-agent steps, keep one task label and report by stage:
+- stage 1/3: gathering
+- stage 2/3: processing
+- stage 3/3: summarizing
+
+This is clearer and cheaper than many tiny updates.
+
+## When not to notify repeatedly
+
+Do not send repeated progress updates when:
+- the task will finish in under ~30 seconds
+- nothing materially changed
+- you would only restate that work is still running
+- the update would require expensive extra tool calls just to produce status
+
+## Failure handling
+
+On failure, always include:
+- what failed
+- the likely reason
+- what was already tried
+- the best next step
+
+Keep it concise.
+
+## Local state file
+
+Optional local state file:
+- path: `task-state.json` in workspace root
+- use it for active/completed task tracking when a task has multiple stages or spans tools
+
+Helper:
+```bash
+python3 skills/task-notify/scripts/task-notify-state.py start <id> "<label>" --eta "5-10m"
+python3 skills/task-notify/scripts/task-notify-state.py progress <id> --progress 50 --note "已完成扫描"
+python3 skills/task-notify/scripts/task-notify-state.py done <id> --result success --note "输出到 out/report.json"
+```
+
+## Practical defaults
+
+- Default to **light mode**, not verbose mode.
+- Prefer **fewer, better** updates.
+- Prefer **tool state** over model-generated filler.
+- Prefer **main-agent summaries** over noisy raw sub-agent updates.
+
+## Bundled resources
+
+- `scripts/task-notify-state.py` — maintain `task-state.json`
+- `references/examples.md` — concrete patterns for exec, browser, and sub-agent tasks
