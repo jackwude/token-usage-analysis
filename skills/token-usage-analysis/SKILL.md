@@ -1,6 +1,6 @@
 # Token Usage Analysis Skill
 
-自动收集和统计 OpenClaw Token 用量，支持按 Agent/日期/时间范围分析。
+自动收集和统计 OpenClaw / Agent 会话 Token 用量，支持按 Agent/日期/时间范围分析。
 
 ## 功能特性
 
@@ -35,6 +35,26 @@ cd ~/.openclaw/workspace/skills/token-usage-analysis
 - "查上周末的 Token 用量" → 直接输出上周末报告
 - "查过去 7 天的用量" → 直接输出 7 天报告
 - "Token 用量分析" → 同上
+
+### 触发边界
+
+本 Skill 负责 **OpenClaw / Agent / 会话级别** 的 Token 用量分析。
+
+优先由本 Skill 处理的说法包括：
+- "查 Token 用量"
+- "Token 用量"
+- "Token 消耗"
+- "查过去24小时的 Token 用量"
+- "会话 Token 用量"
+- "Agent Token 用量"
+
+以下说法**不属于本 Skill**，应交给 `bailian-usage`：
+- "百炼 Token"
+- "百炼用量"
+- "百炼额度"
+- "阿里云百炼"
+- "Coding Plan"
+- "百炼套餐用量"
 
 ### 时间范围选项
 
