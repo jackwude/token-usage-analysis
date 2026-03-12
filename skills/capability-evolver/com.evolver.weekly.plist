@@ -4,14 +4,14 @@
 <dict>
     <key>Label</key>
     <string>com.evolver.weekly</string>
-    
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
         <string>-c</string>
-        <string>cd ~/.openclaw/workspace/skills/capability-evolver &amp;&amp; node index.js</string>
+        <string>echo "deprecated: do not load this plist; use OpenClaw cron job 903b61c4-51c7-4e09-ac1b-999ae1c2322c instead"</string>
     </array>
-    
+    <key>WorkingDirectory</key>
+    <string>/Users/fx/.openclaw/workspace/skills/capability-evolver</string>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
@@ -21,14 +21,9 @@
         <key>Weekday</key>
         <integer>1</integer>
     </dict>
-    
     <key>StandardOutPath</key>
-    <string>/Users/xiaolongxia/.openclaw/workspace/skills/capability-evolver/evolver.log</string>
-    
+    <string>/Users/fx/.openclaw/workspace/logs/evolver-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/xiaolongxia/.openclaw/workspace/skills/capability-evolver/evolver.err</string>
-    
-    <key>WorkingDirectory</key>
-    <string>/Users/xiaolongxia/.openclaw/workspace/skills/capability-evolver</string>
+    <string>/Users/fx/.openclaw/workspace/logs/evolver-stderr.log</string>
 </dict>
 </plist>
