@@ -41,6 +41,14 @@ python3 skills/task-notify/scripts/task-notify-state.py done transcribe-001 --re
 - 只在关键里程碑更新
 - 完成时给出最终摘要
 - 不要高频碎片化播报
+- 优先由主代理转述给用户
+
+可以直接用：
+```bash
+python3 skills/task-notify/scripts/build-subagent-task.py "检查最近 20 个 issue，并给出修复建议"
+```
+
+或参考：`references/subagent-template.md`
 
 ## 4. 失败通知
 

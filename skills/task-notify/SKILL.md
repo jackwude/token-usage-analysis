@@ -95,11 +95,14 @@ When spawning a sub-agent for work that may take time:
 - state the expected duration
 - ask the sub-agent to report only **major milestones** and the final result
 - prefer **main-agent relay** over frequent direct chatter from the sub-agent
+- append a notification block to the spawned task, or generate one with `scripts/build-subagent-task.py`
 
 Use wording like:
 ```text
 已启动子代理处理该任务；预计 10–20 分钟。我会在关键节点同步，不会刷屏。
 ```
+
+Read `references/subagent-template.md` for the exact wrapper text and milestone shapes.
 
 ### 4) mixed workflows
 
@@ -151,4 +154,6 @@ python3 skills/task-notify/scripts/task-notify-state.py done <id> --result succe
 ## Bundled resources
 
 - `scripts/task-notify-state.py` — maintain `task-state.json`
+- `scripts/build-subagent-task.py` — wrap a sub-agent task with low-noise notification requirements
 - `references/examples.md` — concrete patterns for exec, browser, and sub-agent tasks
+- `references/subagent-template.md` — exact wording for sub-agent milestone reporting
