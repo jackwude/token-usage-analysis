@@ -44,6 +44,10 @@
     "github": {
       "version": "1.0.0",
       "installedAt": 1772873042093
+    },
+    "evolver": {
+      "version": "1.27.3",
+      "installedAt": 1773243381526
     }
   }
 }
