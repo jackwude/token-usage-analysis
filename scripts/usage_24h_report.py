@@ -2,6 +2,8 @@ import os, re, sys
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+LOCAL_TZ = datetime.now().astimezone().tzinfo
+
 log_path = os.path.expanduser('~/.openclaw/logs/session-usage.log')
 if not os.path.exists(log_path):
     print('日志不存在：', log_path)
@@ -10,7 +12,10 @@ if not os.path.exists(log_path):
 rx = re.compile(r'^(?P<ts>[^ ]+) \| agent=(?P<agent>[^ ]+) \| session=(?P<session>[^ ]+) \| model=(?P<model>[^ ]+) \| tokens_in=(?P<tin>\d+) \| tokens_out=(?P<tout>\d+) \| cost=\$(?P<cost>[0-9.]+) ')
 
 def parse_iso(ts: str) -> datetime:
-    return datetime.fromisoformat(ts)
+    dt = datetime.fromisoformat(ts)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=LOCAL_TZ)
+    return dt
 
 now = datetime.now().astimezone()
 cutoff = now - timedelta(hours=24)
