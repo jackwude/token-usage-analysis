@@ -18,6 +18,7 @@ const {
 const { selectGeneAndCapsule, matchPatternToSignals } = require('./gep/selector');
 const { buildGepPrompt, buildReusePrompt, buildHubMatchedBlock } = require('./gep/prompt');
 const { hubSearch } = require('./gep/hubSearch');
+const { logAssetCall } = require('./gep/assetCallLog');
 const { extractCapabilityCandidates, renderCandidatesPreview } = require('./gep/candidates');
 const memoryAdapter = require('./gep/memoryGraphAdapter');
 const {
@@ -29,12 +30,15 @@ const {
   memoryGraphPath,
 } = memoryAdapter;
 const { readStateForSolidify, writeStateForSolidify } = require('./gep/solidify');
-const { fetchTasks, selectBestTask, claimTask, taskToSignals } = require('./gep/taskReceiver');
+const { fetchTasks, selectBestTask, claimTask, taskToSignals, claimWorkerTask } = require('./gep/taskReceiver');
 const { generateQuestions } = require('./gep/questionGenerator');
 const { buildMutation, isHighRiskMutationAllowed } = require('./gep/mutation');
 const { selectPersonalityForRun } = require('./gep/personality');
 const { clip, writePromptArtifact, renderSessionsSpawnCall } = require('./gep/bridge');
 const { getEvolutionDir } = require('./gep/paths');
+const { shouldReflect, buildReflectionContext, recordReflection } = require('./gep/reflection');
+const { loadNarrativeSummary } = require('./gep/narrativeMemory');
+const { maybeReportIssue } = require('./gep/issueReporter');
 
 const REPO_ROOT = getRepoRoot();
 
@@ -995,6 +999,19 @@ async function run() {
     console.log(`[QuestionGenerator] Generation failed (non-fatal): ${e.message}`);
   }
 
+  // --- Auto GitHub Issue Reporter ---
+  // When persistent failures are detected, file an issue to the upstream repo
+  // with sanitized logs and environment info.
+  try {
+    await maybeReportIssue({
+      signals,
+      recentEvents,
+      sessionLog: recentMasterLog,
+    });
+  } catch (e) {
+    console.log(`[IssueReporter] Check failed (non-fatal): ${e.message}`);
+  }
+
   // LessonL: lessons received from Hub during fetch
   let hubLessons = [];
 
@@ -1041,6 +1058,36 @@ async function run() {
     }
   } catch (e) {
     console.log(`[TaskReceiver] Fetch/claim failed (non-fatal): ${e.message}`);
+  }
+
+  // --- Worker Pool: claim tasks from heartbeat available_work ---
+  if (!activeTask && process.env.WORKER_ENABLED === '1') {
+    try {
+      const { consumeAvailableWork } = require('./gep/a2aProtocol');
+      const workerTasks = consumeAvailableWork();
+      if (workerTasks.length > 0) {
+        let taskMemoryEvents = [];
+        try {
+          const { tryReadMemoryGraphEvents } = require('./gep/memoryGraph');
+          taskMemoryEvents = tryReadMemoryGraphEvents(1000);
+        } catch {}
+        const best = selectBestTask(workerTasks, taskMemoryEvents);
+        if (best) {
+          const assignment = await claimWorkerTask(best.id || best.task_id);
+          if (assignment) {
+            activeTask = best;
+            activeTask._worker_assignment_id = assignment.id || assignment.assignment_id || null;
+            const taskSignals = taskToSignals(best);
+            for (const sig of taskSignals) {
+              if (!signals.includes(sig)) signals.unshift(sig);
+            }
+            console.log(`[WorkerPool] Claimed worker task: "${best.title || best.id}" assignment=${activeTask._worker_assignment_id} (${taskSignals.length} signals injected)`);
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`[WorkerPool] Claim failed (non-fatal): ${e.message}`);
+    }
   }
 
   const recentErrorMatches = recentMasterLog.match(/\[ERROR|Error:|Exception:|FAIL|Failed|"isError":true/gi) || [];
@@ -1188,6 +1235,31 @@ async function run() {
     console.error(`[MemoryGraph] Read failed: ${e.message}`);
     console.error(`[MemoryGraph] Refusing to evolve without causal memory. Target: ${memoryGraphPath()}`);
     throw new Error(`MemoryGraph Read failed: ${e.message}`);
+  }
+
+  // Reflection Phase: periodically pause to assess evolution strategy.
+  try {
+    const cycleState = fs.existsSync(STATE_FILE) ? JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')) : {};
+    const cycleCount = cycleState.cycleCount || 0;
+    if (shouldReflect({ cycleCount, recentEvents })) {
+      const narrativeSummary = loadNarrativeSummary(3000);
+      const reflectionCtx = buildReflectionContext({
+        recentEvents,
+        signals,
+        memoryAdvice,
+        narrative: narrativeSummary,
+      });
+      recordReflection({
+        cycle_count: cycleCount,
+        signals_snapshot: signals.slice(0, 20),
+        preferred_gene: memoryAdvice && memoryAdvice.preferredGeneId ? memoryAdvice.preferredGeneId : null,
+        banned_genes: memoryAdvice && Array.isArray(memoryAdvice.bannedGeneIds) ? memoryAdvice.bannedGeneIds : [],
+        context_preview: reflectionCtx.slice(0, 1000),
+      });
+      console.log(`[Reflection] Strategic reflection recorded at cycle ${cycleCount}.`);
+    }
+  } catch (e) {
+    console.log('[Reflection] Failed (non-fatal): ' + (e && e.message ? e.message : e));
   }
 
   var recentFailedCapsules = [];
@@ -1379,10 +1451,30 @@ async function run() {
         blast_radius_estimate: blastRadiusEstimate,
         active_task_id: activeTask ? (activeTask.id || activeTask.task_id || null) : null,
         active_task_title: activeTask ? (activeTask.title || null) : null,
+        worker_assignment_id: activeTask ? (activeTask._worker_assignment_id || null) : null,
         applied_lessons: hubLessons.map(function(l) { return l.lesson_id; }).filter(Boolean),
         hub_lessons: hubLessons,
       };
     writeStateForSolidify(prevState);
+
+    if (hubHit && hubHit.hit) {
+      const assetAction = hubHit.mode === 'direct' ? 'asset_reuse' : 'asset_reference';
+      logAssetCall({
+        run_id: runId,
+        action: assetAction,
+        asset_id: hubHit.asset_id || null,
+        asset_type: hubHit.match && hubHit.match.type ? hubHit.match.type : null,
+        source_node_id: hubHit.source_node_id || null,
+        chain_id: hubHit.chain_id || null,
+        score: hubHit.score || null,
+        mode: hubHit.mode,
+        signals: Array.isArray(signals) ? signals : [],
+        extra: {
+          selected_gene_id: selectedGene && selectedGene.id ? selectedGene.id : null,
+          task_id: activeTask ? (activeTask.id || activeTask.task_id || null) : null,
+        },
+      });
+    }
   } catch (e) {
     console.error(`[SolidifyState] Write failed: ${e.message}`);
   }
@@ -1555,7 +1647,7 @@ ${mutationDirective}
       '',
       'Loop chaining (only if you are running in loop mode): after solidify succeeds, print a sessions_spawn call to start the next loop run with a short delay.',
       'Example:',
-      'sessions_spawn({ task: "exec: node skills/capability-evolver/src/ops/lifecycle.js check", agentId: "main", cleanup: "delete", label: "gep_loop_next" })',
+      'sessions_spawn({ task: "exec: node skills/evolver/src/ops/lifecycle.js check", agentId: "main", cleanup: "delete", label: "gep_loop_next" })',
       '',
       'GEP protocol prompt (may be truncated here; prefer the prompt file if provided):',
       clip(prompt, 24000),
