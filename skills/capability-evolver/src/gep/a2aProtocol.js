@@ -465,10 +465,11 @@ function startHeartbeat(intervalMs) {
   var interval = intervalMs || Number(process.env.HEARTBEAT_INTERVAL_MS) || 120000; // default 2min
   _heartbeatStartedAt = Date.now();
 
-  // Register with hub first (hello), then start heartbeat loop
+  // Register with hub first (hello), then start heartbeat loop.
+  // Missing hub URL is a valid local-only mode; skip noisy warnings in that case.
   sendHelloToHub().then(function (r) {
     if (r.ok) console.log('[Heartbeat] Registered with hub. Node: ' + getNodeId());
-    else console.warn('[Heartbeat] Hello failed (will retry via heartbeat): ' + (r.error || 'unknown'));
+    else if (r && r.error !== 'no_hub_url') console.warn('[Heartbeat] Hello failed (will retry via heartbeat): ' + (r.error || 'unknown'));
   }).catch(function () {});
 
   // First heartbeat after a short delay (let hello complete first)
