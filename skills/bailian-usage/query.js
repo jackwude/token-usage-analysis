@@ -14,13 +14,16 @@ const BAILIAN_URL = 'https://bailian.console.aliyun.com/cn-beijing/?tab=coding-p
 const TOOLS_PATH = path.join(process.env.HOME, '.openclaw/workspace/TOOLS.md');
 const SESSION = process.env.BAILIAN_SESSION || 'bailian';
 const STATE_PATH = process.env.BAILIAN_STATE_PATH || path.join(os.homedir(), '.openclaw/browser-states/bailian.json');
+const FORCE_HEADED = (process.env.BAILIAN_HEADED || 'true').toLowerCase() !== 'false';
 
 function stripAnsi(s) {
   return String(s || '').replace(/\x1B\[[0-9;]*m/g, '');
 }
 
 function runAB(args, { allowFail = false } = {}) {
-  const r = spawnSync('agent-browser', ['--session', SESSION, ...args], { encoding: 'utf8' });
+  const baseArgs = ['--session', SESSION];
+  if (FORCE_HEADED) baseArgs.push('--headed');
+  const r = spawnSync('agent-browser', [...baseArgs, ...args], { encoding: 'utf8' });
   if (r.status !== 0 && !allowFail) {
     throw new Error(stripAnsi((r.stderr || r.stdout || `agent-browser failed: ${args.join(' ')}`).trim()));
   }
@@ -52,7 +55,11 @@ function getBodyText() {
 }
 
 function isLoggedIn(text) {
-  return !text.includes('\n登录\n') && !text.includes('请登录') && text.includes('我的订阅');
+  const t = String(text || '');
+  if (t.includes('\n登录\n') || t.includes('请登录')) return false;
+  // 未登录首页也会出现“我的订阅”字样，增加显式账号态判断
+  if (t.includes('退出登录') || t.includes('账号中心') || t.includes('控制台首页')) return true;
+  return false;
 }
 
 function clickIfContains(label) {
@@ -65,9 +72,9 @@ function clickIfContains(label) {
 }
 
 function tryLogin(account, password) {
-  // 尝试点击顶部登录
-  clickIfContains('登录');
-  runAB(['wait', '3000'], { allowFail: true });
+  // 直接打开账号密码登录页（避免在控制台首页点不到登录入口）
+  runAB(['open', 'https://passport.aliyun.com/havanaone/login/login.htm?lang=zh_CN&appName=aliyun&appEntrance=aliyun_pc_pwd&styleType=vertical&bizParams=&notLoadSsoView=true&notKeepLogin=true&isMobile=false&targetId=alibaba-login-iframe&regUrl=https%3A%2F%2Faccount.aliyun.com%2Fregister%2Fqr_register.htm&returnUrl=https%3A%2F%2Faccount.aliyun.com%2Flogin%2Flogin_aliyun.htm%3Fft%3Dpc_pwd_m%26log_channel%3Dindep%26log_platform%3Dpc%26login_log_entrance%3Dofficial%26login_method%3Dpwd_login%26log_biz%3Daliyun&newSmsLoginReg=true&cssUrl=https%3A%2F%2Fg.alicdn.com%2Fdawn%2Faliyun-account-styles%2F0.0.1%2Flogin-embedder.css&bizPassParams=%7B%22tenantName%22%3A%22%22%7D']);
+  runAB(['wait', '2500'], { allowFail: true });
 
   // 尝试切换账号密码登录并填写
   runAB(['eval', `(() => {
@@ -107,7 +114,14 @@ function tryLogin(account, password) {
     return 'no-login-button';
   })()`], { allowFail: true });
 
-  runAB(['wait', '6000'], { allowFail: true });
+  runAB(['wait', '3500'], { allowFail: true });
+
+  // 检查是否触发滑块验证（当前自动化难以稳定通过）
+  const captchaTriggered = runAB(['eval', `(() => !!document.querySelector('#baxia-dialog-content, iframe[src*="captcha"], iframe[src*="punish"]'))()`], { allowFail: true });
+  if (String(captchaTriggered).includes('true')) {
+    throw new Error('触发阿里云滑块验证，需人工完成一次验证后再重试');
+  }
+
   runAB(['open', BAILIAN_URL], { allowFail: true });
   runAB(['wait', '3000'], { allowFail: true });
 }
