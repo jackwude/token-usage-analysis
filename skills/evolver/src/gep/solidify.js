@@ -17,6 +17,9 @@ const {
 const { computeAssetId, SCHEMA_VERSION } = require('./contentHash');
 const { captureEnvFingerprint } = require('./envFingerprint');
 const { buildValidationReport } = require('./validationReport');
+const { logAssetCall } = require('./assetCallLog');
+const { recordNarrative } = require('./narrativeMemory');
+const { isLlmReviewEnabled, runLlmReview } = require('./llmReview');
 
 function nowIso() {
   return new Date().toISOString();
@@ -658,6 +661,26 @@ function buildFailureReason(constraintCheck, validation, protocolViolations, can
 }
 
 function rollbackTracked(repoRoot) {
+  const mode = String(process.env.EVOLVER_ROLLBACK_MODE || 'hard').toLowerCase();
+
+  if (mode === 'none') {
+    console.log('[Rollback] EVOLVER_ROLLBACK_MODE=none, skipping rollback');
+    return;
+  }
+
+  if (mode === 'stash') {
+    const stashRef = 'evolver-rollback-' + Date.now();
+    const result = tryRunCmd('git stash push -m "' + stashRef + '" --include-untracked', { cwd: repoRoot, timeoutMs: 60000 });
+    if (result.ok) {
+      console.log('[Rollback] Changes stashed with ref: ' + stashRef + '. Recover with "git stash list" and "git stash pop".');
+    } else {
+      console.log('[Rollback] Stash failed or no changes, using hard reset');
+      tryRunCmd('git restore --staged --worktree .', { cwd: repoRoot, timeoutMs: 60000 });
+      tryRunCmd('git reset --hard', { cwd: repoRoot, timeoutMs: 60000 });
+    }
+    return;
+  }
+
   tryRunCmd('git restore --staged --worktree .', { cwd: repoRoot, timeoutMs: 60000 });
   tryRunCmd('git reset --hard', { cwd: repoRoot, timeoutMs: 60000 });
 }
@@ -1081,6 +1104,29 @@ function solidify({ intent, summary, dryRun = false, rollbackOnFailure = true } 
     console.error(`[Solidify] CANARY FAILED: ${canary.err}`);
   }
 
+  // Optional LLM review: when EVOLVER_LLM_REVIEW=true, submit diff for review.
+  let llmReviewResult = null;
+  if (constraintCheck.ok && validation.ok && protocolViolations.length === 0 && isLlmReviewEnabled()) {
+    try {
+      const reviewDiff = captureDiffSnapshot(repoRoot);
+      llmReviewResult = runLlmReview({
+        diff: reviewDiff,
+        gene: geneUsed,
+        signals,
+        mutation,
+      });
+      if (llmReviewResult && llmReviewResult.approved === false) {
+        constraintCheck.violations.push('llm_review_rejected: ' + (llmReviewResult.summary || 'no reason'));
+        constraintCheck.ok = false;
+        console.log('[LLMReview] Change REJECTED: ' + (llmReviewResult.summary || ''));
+      } else if (llmReviewResult) {
+        console.log('[LLMReview] Change approved (confidence: ' + (llmReviewResult.confidence || '?') + ')');
+      }
+    } catch (e) {
+      console.log('[LLMReview] Failed (non-fatal): ' + (e && e.message ? e.message : e));
+    }
+  }
+
   // Build standardized ValidationReport (machine-readable, interoperable).
   const validationReport = buildValidationReport({
     geneId: geneUsed && geneUsed.id ? geneUsed.id : null,
@@ -1287,6 +1333,21 @@ function solidify({ intent, summary, dryRun = false, rollbackOnFailure = true } 
   };
   if (!dryRun) writeStateForSolidify(state);
 
+  if (!dryRun) {
+    try {
+      recordNarrative({
+        gene: geneUsed,
+        signals,
+        mutation,
+        outcome: event.outcome,
+        blast,
+        capsule,
+      });
+    } catch (e) {
+      console.log('[Narrative] Record failed (non-fatal): ' + (e && e.message ? e.message : e));
+    }
+  }
+
   // Search-First Evolution: auto-publish eligible capsules to the Hub (as Gene+Capsule bundle).
   let publishResult = null;
   if (!dryRun && capsule && capsule.a2a && capsule.a2a.eligible_to_broadcast) {
@@ -1360,6 +1421,21 @@ function solidify({ intent, summary, dryRun = false, rollbackOnFailure = true } 
               });
           }
           publishResult = { attempted: true, asset_id: capsule.asset_id || capsule.id, bundle: true };
+          logAssetCall({
+            run_id: lastRun && lastRun.run_id ? lastRun.run_id : null,
+            action: 'asset_publish',
+            asset_id: capsule.asset_id || capsule.id,
+            asset_type: 'Capsule',
+            source_node_id: null,
+            chain_id: publishChainId || null,
+            signals: Array.isArray(capsule.trigger) ? capsule.trigger : [],
+            extra: {
+              source_type: sourceType,
+              reused_asset_id: reusedAssetId,
+              gene_id: publishGene && publishGene.id ? publishGene.id : null,
+              parent: parentRef || null,
+            },
+          });
         } else {
           publishResult = { attempted: false, reason: 'no_hub_url' };
         }
@@ -1373,6 +1449,14 @@ function solidify({ intent, summary, dryRun = false, rollbackOnFailure = true } 
         : sourceType === 'reused' ? 'skip_direct_reused_asset'
         : 'below_min_score';
       publishResult = { attempted: false, reason };
+      logAssetCall({
+        run_id: lastRun && lastRun.run_id ? lastRun.run_id : null,
+        action: 'asset_publish_skip',
+        asset_id: capsule.asset_id || capsule.id,
+        asset_type: 'Capsule',
+        reason,
+        signals: Array.isArray(capsule.trigger) ? capsule.trigger : [],
+      });
     }
   }
 
@@ -1454,33 +1538,95 @@ function solidify({ intent, summary, dryRun = false, rollbackOnFailure = true } 
   if (!dryRun && success && lastRun && lastRun.active_task_id) {
     const resultAssetId = capsule && capsule.asset_id ? capsule.asset_id : (capsule && capsule.id ? capsule.id : null);
     if (resultAssetId) {
-      try {
-        const { completeTask } = require('./taskReceiver');
-        const taskId = String(lastRun.active_task_id);
-        console.log(`[TaskComplete] Completing task "${lastRun.active_task_title || taskId}" with asset ${resultAssetId}`);
-        const completed = completeTask(taskId, resultAssetId);
-        if (completed && typeof completed.then === 'function') {
-          completed
-            .then(function (ok) {
-              if (ok) {
-                console.log('[TaskComplete] Task completed successfully on Hub.');
-              } else {
-                console.log('[TaskComplete] Hub rejected task completion (non-fatal).');
-              }
-            })
-            .catch(function (err) {
-              console.log('[TaskComplete] Failed (non-fatal): ' + (err && err.message ? err.message : err));
-            });
+      const workerAssignmentId = lastRun.worker_assignment_id || null;
+      if (workerAssignmentId) {
+        // Worker Pool path: complete via /a2a/work/complete
+        try {
+          const { completeWorkerTask } = require('./taskReceiver');
+          console.log(`[WorkerComplete] Completing worker assignment "${workerAssignmentId}" with asset ${resultAssetId}`);
+          const completed = completeWorkerTask(workerAssignmentId, resultAssetId);
+          if (completed && typeof completed.then === 'function') {
+            completed
+              .then(function (ok) {
+                if (ok) {
+                  console.log('[WorkerComplete] Worker task completed successfully on Hub.');
+                } else {
+                  console.log('[WorkerComplete] Hub rejected worker completion (non-fatal).');
+                }
+              })
+              .catch(function (err) {
+                console.log('[WorkerComplete] Failed (non-fatal): ' + (err && err.message ? err.message : err));
+              });
+          }
+          taskCompleteResult = { attempted: true, task_id: lastRun.active_task_id, assignment_id: workerAssignmentId, asset_id: resultAssetId, worker: true };
+        } catch (e) {
+          console.log('[WorkerComplete] Error (non-fatal): ' + e.message);
+          taskCompleteResult = { attempted: false, reason: e.message, worker: true };
         }
-        taskCompleteResult = { attempted: true, task_id: taskId, asset_id: resultAssetId };
-      } catch (e) {
-        console.log('[TaskComplete] Error (non-fatal): ' + e.message);
-        taskCompleteResult = { attempted: false, reason: e.message };
+      } else {
+        // Bounty task path: complete via /a2a/task/complete
+        try {
+          const { completeTask } = require('./taskReceiver');
+          const taskId = String(lastRun.active_task_id);
+          console.log(`[TaskComplete] Completing task "${lastRun.active_task_title || taskId}" with asset ${resultAssetId}`);
+          const completed = completeTask(taskId, resultAssetId);
+          if (completed && typeof completed.then === 'function') {
+            completed
+              .then(function (ok) {
+                if (ok) {
+                  console.log('[TaskComplete] Task completed successfully on Hub.');
+                } else {
+                  console.log('[TaskComplete] Hub rejected task completion (non-fatal).');
+                }
+              })
+              .catch(function (err) {
+                console.log('[TaskComplete] Failed (non-fatal): ' + (err && err.message ? err.message : err));
+              });
+          }
+          taskCompleteResult = { attempted: true, task_id: taskId, asset_id: resultAssetId };
+        } catch (e) {
+          console.log('[TaskComplete] Error (non-fatal): ' + e.message);
+          taskCompleteResult = { attempted: false, reason: e.message };
+        }
       }
     }
   }
 
-  return { ok: success, event, capsule, gene: geneUsed, constraintCheck, validation, validationReport, blast, publishResult, antiPatternPublishResult, taskCompleteResult };
+
+  // --- Auto Hub Review: rate fetched assets based on solidify outcome ---
+  // When this cycle reused a Hub asset, submit a usage-verified review.
+  // Fire-and-forget: review submission must never block or affect solidify result.
+  var hubReviewResult = null;
+  if (!dryRun && reusedAssetId && (sourceType === 'reused' || sourceType === 'reference')) {
+    try {
+      var { submitHubReview } = require('./hubReview');
+      var reviewPromise = submitHubReview({
+        reusedAssetId: reusedAssetId,
+        sourceType: sourceType,
+        outcome: event.outcome,
+        gene: geneUsed,
+        signals: signals,
+        blast: blast,
+        constraintCheck: constraintCheck,
+        runId: lastRun && lastRun.run_id ? lastRun.run_id : null,
+      });
+      if (reviewPromise && typeof reviewPromise.then === 'function') {
+        reviewPromise
+          .then(function (r) {
+            hubReviewResult = r;
+            if (r && r.submitted) {
+              console.log('[HubReview] Review submitted successfully (rating=' + r.rating + ').');
+            }
+          })
+          .catch(function (err) {
+            console.log('[HubReview] Error (non-fatal): ' + (err && err.message ? err.message : err));
+          });
+      }
+    } catch (e) {
+      console.log('[HubReview] Error (non-fatal): ' + e.message);
+    }
+  }
+  return { ok: success, event, capsule, gene: geneUsed, constraintCheck, validation, validationReport, blast, publishResult, antiPatternPublishResult, taskCompleteResult, hubReviewResult };
 }
 
 module.exports = {
