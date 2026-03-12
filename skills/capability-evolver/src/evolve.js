@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
-const { getRepoRoot, getMemoryDir, getSessionScope } = require('./gep/paths');
+const { getRepoRoot, getMemoryDir, getSessionScope, getSkillsDir } = require('./gep/paths');
 const { extractSignals } = require('./gep/signals');
 const {
   loadGenes,
@@ -563,11 +563,25 @@ function checkAndAutoUpdate() {
           cwd: path.resolve(REPO_ROOT, '..'),
           windowsHide: true,
         });
-        if (out && !out.includes('already up to date') && !out.includes('not installed')) {
-          console.log(`[AutoUpdate] ${slug}: ${out.trim().split('\n').pop()}`);
-          updated = true;
+        const lastLine = out ? out.trim().split('\n').pop() : '';
+        if (!out || out.includes('already up to date') || out.includes('not installed')) {
+          continue;
         }
+        if (out.includes('flagged as malware') || out.includes('cannot be updated')) {
+          console.log(`[AutoUpdate] ${slug}: skipped (${lastLine})`);
+          continue;
+        }
+        console.log(`[AutoUpdate] ${slug}: ${lastLine}`);
+        updated = true;
       } catch (e) {
+        const stderr = e && e.stderr ? String(e.stderr) : '';
+        const stdout = e && e.stdout ? String(e.stdout) : '';
+        const combined = `${stdout}\n${stderr}`;
+        if (combined.includes('flagged as malware') || combined.includes('cannot be updated')) {
+          const line = combined.trim().split('\n').filter(Boolean).pop() || 'flagged as malware';
+          console.log(`[AutoUpdate] ${slug}: skipped (${line})`);
+          continue;
+        }
         // Non-fatal: update failure should never block evolution
       }
     }
@@ -817,7 +831,7 @@ async function run() {
   // 2. Detect Workspace State & Local Overrides
   // Logic: Default to generic reporting (message)
   let fileList = '';
-  const skillsDir = path.join(REPO_ROOT, 'skills');
+  const skillsDir = getSkillsDir();
 
   // Default Reporting: Use generic `message` tool or `process.env.EVOLVE_REPORT_CMD` if set.
   // This removes the hardcoded dependency on 'feishu-card' from the core logic.
