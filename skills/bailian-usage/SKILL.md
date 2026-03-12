@@ -18,24 +18,18 @@
 
 ## 前置准备
 
-### 方案 A：Profile 持久化（推荐 ✅）
+### 方案 A：Agent Browser State 持久化（推荐 ✅）
 
-**首次配置后，以后无需登录**
+**主链路：state load -> 访问页面 -> 必要时登录 -> state save**
 
-配置方法：
-```bash
-# 1. 创建 Profile 目录
-mkdir -p ~/.openclaw/chrome-profiles/bailian
-
-# 2. 用 browser 工具打开百炼控制台并手动登录
-# 3. 登录后关闭页面，状态会自动保存
-```
+配置约定：
+- Session：`bailian`
+- State 文件：`~/.openclaw/browser-states/bailian.json`
 
 **优势**：
-- ✅ 一次登录，长期有效
-- ✅ 包含所有 Cookies（包括 HttpOnly）
-- ✅ 支持 LocalStorage/SessionStorage
-- ✅ 无需每次输入密码
+- ✅ 登录态保存/加载是显式动作，稳定且可观测
+- ✅ 易于自动化编排（失效检测、自动回写）
+- ✅ 一站点一状态文件，维护更轻
 
 ### 方案 B：账号密码登录（备选）
 
@@ -51,13 +45,15 @@ mkdir -p ~/.openclaw/chrome-profiles/bailian
 
 ## 执行流程
 
-### 方案 A：Profile 持久化（推荐）
+### 方案 A：Agent Browser State 持久化（推荐）
 
-1. **打开浏览器** → 访问百炼控制台（自动登录）
-2. **查看订阅** → 点击"我的订阅"tab
-3. **提取信息** → 获取套餐详情和用量
-4. **关闭页面** → 清理浏览器资源（省内存）
-5. **返回结果** → 格式化输出
+1. **加载 state**（若存在）→ `state load ~/.openclaw/browser-states/bailian.json`
+2. **打开页面** → 访问百炼控制台
+3. **检查登录态** → 若未登录则走账号密码登录
+4. **进入“我的订阅”** → 提取套餐详情和用量
+5. **保存 state** → `state save` 覆盖更新
+6. **关闭页面** → 清理浏览器资源（省内存）
+7. **返回结果** → 格式化输出
 
 ### 方案 B：账号密码登录（备选）
 
@@ -94,12 +90,12 @@ mkdir -p ~/.openclaw/chrome-profiles/bailian
 
 ## 注意事项
 
-1. **优先使用 Profile 方案** - 更高效稳定
-2. **Profile 目录位置** - `~/.openclaw/chrome-profiles/bailian/`
-3. **完成后关闭页面** - 避免浏览器资源占用
-4. **登录失败处理** - Profile 失效时切换到账号密码方案
+1. **优先使用 state 方案** - session `bailian` + `~/.openclaw/browser-states/bailian.json`
+2. **完成后关闭页面** - 避免浏览器资源占用
+3. **登录失败处理** - state 失效时切换账号密码登录并重新 `state save`
+4. **高风控场景** - 若触发短信/二次验证，需人工补一次验证后再持久化
 5. **用量刷新时间** - 可能滞后，以页面显示为准
-6. **定期清理浏览器** - 防止页面堆积导致超时
+6. **Profile 仅兜底** - 如 state 连续失败再临时回退 profile
 
 ## 快捷命令
 
