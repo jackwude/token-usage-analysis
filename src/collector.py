@@ -159,16 +159,21 @@ def scan_session_file(session_file):
                         # usage 可能在根级别，也可能在 message 对象里
                         usage = data.get('usage', {}) or data.get('message', {}).get('usage', {})
                         
-                        # 提取 usage 数据
+                        # 提取 usage 数据（tokens）
                         input_val = usage.get('input', usage.get('input_tokens', usage.get('prompt_tokens', 0)))
                         output_val = usage.get('output', usage.get('output_tokens', usage.get('completion_tokens', 0)))
-                        total_val = usage.get('total', usage.get('totalTokens', 0))
+                        
+                        # 提取 cost 数据（如果有）
+                        cost_data = usage.get('cost', {})
+                        cost_val = cost_data.get('total', 0) if isinstance(cost_data, dict) else 0
                         
                         # 如果 usage 有真实数据，直接使用
                         if input_val > 0 or output_val > 0:
                             tokens_in += input_val
                             tokens_out += output_val
-                            total_cost += total_val
+                            # 只有当 API 返回了 cost 时才使用，否则后续估算
+                            if cost_val > 0:
+                                total_cost += cost_val
                         # 如果 usage 为 0 且 tiktoken 可用，收集 message 用于估算
                         elif TIKTOKEN_AVAILABLE:
                             msg = data.get('message', {})
