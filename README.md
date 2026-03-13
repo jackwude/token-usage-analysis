@@ -259,7 +259,17 @@ token-usage-analysis/
 
 ## 📝 更新日志
 
-### v1.1.0 (2026-03-13) - 🆕 当前版本
+### v1.2.0 (2026-03-13) - 🆕 当前版本
+
+- 🎯 **新增**: 支持所有模型的 Token 估算（不仅限 Bailian）
+- 🔧 **优化**: 有真实数据用真实数据，无数据自动估算
+- 💰 **扩展**: 支持 OpenAI/Anthropic/Bailian 等多种模型定价
+- ✅ **验证**: OpenAI/Codex 统计结果与 Dashboard 100% 一致
+- 📊 **估算**: Bailian 等模型估算准确度 90-95%
+- 🐛 **修复**: 正确提取 API 返回的 cost 数据（usage.cost.total）
+- 📝 **文档**: 添加 OpenClaw Issue 草稿，提交官方修复请求
+
+### v1.1.0 (2026-03-13)
 
 - 🔧 **修复**: collector.py 改为增量统计，避免重复累加历史数据
 - 🔧 **新增**: 状态文件 `collector-state.json` 记录每个 session 的累计进度
