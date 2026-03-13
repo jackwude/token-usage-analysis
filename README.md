@@ -1,6 +1,6 @@
 # 🦞 Token Usage Analysis
 
-OpenClaw Token 用量分析工具 - 自动收集 + 对话式分析
+OpenClaw Token 用量分析工具 - 自动收集 + 智能分析
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-blue)](https://openclaw.ai)
@@ -9,17 +9,13 @@ OpenClaw Token 用量分析工具 - 自动收集 + 对话式分析
 
 ## 📖 简介
 
-自动收集和统计 OpenClaw 各 Agent 的 Token 用量，支持按时间范围、Agent、占比、峰值和异常做分析。
-
-这个 Skill 现在默认面向 **对话查询**，不是只给命令行用的脚本包。
+自动收集和统计 OpenClaw 各 Agent 的 Token 用量，支持按 Agent、日期、时间范围多维度分析。帮助你了解 Token 消耗情况，优化使用成本。
 
 ### ✨ 主要功能
 
 - 🕐 **自动收集** - 每小时自动记录各 Agent 的 Token 用量快照
-- 💬 **对话式查询** - 直接问“查过去 7 天 Token”即可输出报告
-- 📊 **固定结果模板** - 统一输出结论、明细、趋势图、观察、判断
-- 📈 **7 天文本柱状图** - 直接展示每日变化趋势
-- 🔍 **异常提示** - 自动标记疑似成本异常日期
+- 📊 **多维度分析** - 按 Agent、日期、Session 分组统计
+- 🔍 **灵活查询** - 支持 24 小时/7 天/30 天/周末/自定义范围查询
 - 🗂️ **日志轮转** - 自动管理日志大小（10MB 限制 + 90 天保留）
 - 💻 **跨平台** - 支持 macOS (launchd) 和 Linux (cron)
 
@@ -54,123 +50,102 @@ git clone https://github.com/jackwude/token-usage-analysis.git ~/.openclaw/works
 # 1. 检查定时任务状态
 ~/.openclaw/bin/collect-usage --diagnose
 
-# 2. 手动触发一次收集
-~/.openclaw/bin/collect-usage
+# 2. 检查 macOS launchd 任务（macOS 用户）
+launchctl list | grep "com.token-usage"
+# 输出示例：-    78    com.token-usage.collector
 
-# 3. 查看日志文件
+# 3. 手动触发一次收集
+~/.openclaw/bin/collect-usage
+# 输出示例：✅ 已收集 4 个 session 快照 (2026-03-10T14:00:00)
+
+# 4. 查看日志文件
 ls -lh ~/.openclaw/logs/session-usage.log
+# 输出示例：-rw-r--r--  1 fx  staff  105K Mar 10 14:00 session-usage.log
 ```
 
-**💡 提示**：安装后建议等待一段时间再查询，数据越完整，分析越有价值。
+**💡 提示**：安装后建议等待 24 小时再查询，获得完整的用量报告。
 
 ---
 
-## 💬 使用方法
+## 📊 使用方法
 
 ### 通过对话查询（推荐）
 
-安装后，直接对 OpenClaw 说：
+安装后，直接对 OpenClaw 说以下命令：
 
-- `查 Token`
-- `查 Token 用量`
-- `Token 用量分析`
-- `查过去 7 天 Token`
-- `查最近 24 小时 Token`
-- `查上周 Token`
-- `查上周末 Token`
-- `查 main 的 Token 用量`
-- `哪个 Agent 用量最高`
-- `最近哪天 Token 花得最多`
+| 命令 | 说明 |
+|------|------|
+| `查 Token 用量` | 选择时间范围后输出报告 |
+| `查上周末的 Token 用量` | 直接输出上周末报告 |
+| `查过去 7 天的用量` | 直接输出 7 天报告 |
+| `Token 用量分析` | 同上 |
 
-### 时间范围
+### 时间范围选项
 
-默认支持：
+查询时会提供以下选项：
 
-1. 过去 24 小时
-2. 过去 7 天
-3. 过去 30 天
-4. 上周末
-5. 上周
-6. 自定义日期范围
+1. **过去 24 小时** - 快速查看最近用量
+2. **过去 7 天** - 周维度汇总
+3. **过去 30 天** - 月维度汇总
+4. **上周末** - 最近一个周六 + 周日
+5. **上周** - 上周一到周日
+6. **自定义日期范围** - 手动输入起止日期
 
-### 输出模板（已固化）
+### 输出示例
 
-所有报告默认按以下结构输出：
+**过去 7 天报告（真实数据）：**
 
-1. `【结论】`
-2. `【Agent 明细】`
-3. `【7 天趋势图】`
-4. `【关键观察】`
-5. `【一句话判断】`
+```
+======================================================================
+🦞 Token 用量汇总分析（过去 7 天）
+======================================================================
 
----
+📊 Agent: main
+------------------------------------------------------------
+  📅 2026-03-07 (周六):
+     Token: 2,313,060 (in=2,233,648, out=79,412)
+     Cost:  $7.73
+     Sessions: 20
+  📅 2026-03-08 (周日):
+     Token: 7,093,884 (in=6,987,052, out=106,832)
+     Cost:  $23.23
+     Sessions: 32
+  📅 2026-03-09 (周一):
+     Token: 6,174,705 (in=6,140,854, out=33,851)
+     Cost:  $0.00
+     Sessions: 31
 
-## 📊 输出示例
+  📈 合计:
+     Token: 15,581,649 (in=15,361,554, out=220,095)
+     Cost:  $30.96
+     Sessions: 93
 
-**过去 7 天报告（新模板）：**
+📊 Agent: tg-office
+------------------------------------------------------------
+  📅 2026-03-07 (周六):
+     Token: 352,734 (in=332,800, out=19,934)
+     Cost:  $1.28
+     Sessions: 3
 
-```markdown
-📊 Token 用量分析（过去 7 天）
+  📈 合计:
+     Token: 366,253 (in=345,698, out=20,555)
+     Cost:  $1.31
+     Sessions: 7
 
-【结论】
-- 总 Token：16,106,551
-- 总 Cost：$44.98
-- 主消耗 Agent：main（97.4%）
-- 峰值日期：2026-03-08
-- 异常提示：2026-03-11 cost 偏高（$12.42 / 121,310 Token）
+======================================================================
+📊 总计（所有 Agent）
+------------------------------------------------------------
+总 Token: 15,947,902 (in=15,707,252, out=240,650)
+总 Cost: $32.27
+总 Sessions: 100
 
-【Agent 明细】
-1. main
-   - Token：15,691,179
-   - Cost：$43.55
-   - Sessions：113
-   - 占比：97.4%
-
-2. tg-office
-   - Token：415,372
-   - Cost：$1.44
-   - Sessions：8
-   - 占比：2.6%
-
-【7 天趋势图】
-03-05 | ▏ 0.00M
-03-06 | ▏ 0.00M
-03-07 | ████████████ 2.67M
-03-08 | ████████████████████████████████ 7.11M
-03-09 | ████████████████████████████ 6.17M
-03-10 | █ 0.04M
-03-11 | █ 0.12M
-
-【关键观察】
-- 用量高度集中在 main（97.4%）
-- 峰值日期是 2026-03-08，单日消耗 7,107,403 Token
-- 发现成本异常：2026-03-11 cost 偏高（$12.42 / 121,310 Token）
-
-【一句话判断】
-该时间段属于 main 主导的消耗模式，且存在成本异常，建议优先排查 cost 口径。
+💡 用量分布:
+- main: 97.7%
+- tg-office: 2.3%
+======================================================================
 ```
 
----
-
-## 🧠 分析逻辑
-
-### 当前支持
-
-- 按时间范围汇总 Token 用量
-- 按 Agent 输出占比与明细
-- 识别峰值日期
-- 生成最近 7 个自然日的文本柱状图
-- 检测疑似成本异常
-
-### 当前局限
-
-- 统计基于快照差分，不是逐事件精确记账
-- 若 session 中途重置、截断、跨天或日志缺失，结果可能有误差
-- 当前更擅长时间范围汇总，后续可继续增强 Agent 过滤、排名、模型维度分析
-
----
-
-## 🧰 命令行（安装 / 诊断 / 排障）
+### 命令行查询
 
 ```bash
 # 诊断状态
@@ -181,36 +156,41 @@ ls -lh ~/.openclaw/logs/session-usage.log
 
 # 清理旧日志
 ~/.openclaw/bin/collect-usage --cleanup
-
-# 直接运行分析脚本（示例）
-python3 ~/.openclaw/workspace/skills/token-usage-analysis/src/analyzer.py 7d
 ```
 
 ---
 
 ## 📁 文件结构
 
-```text
+```
 token-usage-analysis/
-├── SKILL.md
-├── README.md
-├── SECURITY_AUDIT.md
-├── PUBLISH.md
-├── clawhub.yaml
-├── install.sh
-├── uninstall.sh
-├── references/
-│   └── output-template.md
+├── SKILL.md                          # 技能说明
+├── README.md                         # 本文件
+├── SECURITY_AUDIT.md                 # 安全审计报告
+├── PUBLISH.md                        # 发布指南
+├── clawhub.yaml                      # ClawHub 配置
+├── install.sh                        # 安装脚本
+├── uninstall.sh                      # 卸载脚本
 ├── src/
-│   ├── collector.py
-│   └── analyzer.py
+│   ├── collector.py                  # 日志收集器
+│   └── analyzer.py                   # 分析脚本
 └── services/
-    └── com.token-usage.collector.plist
+    └── com.token-usage.collector.plist  # macOS 定时任务配置
 ```
 
 ---
 
 ## 🔧 配置说明
+
+### 定时任务频率
+
+默认每小时执行一次（整点），如需修改：
+
+**macOS (launchd)**:
+编辑 `services/com.token-usage.collector.plist`，修改 `StartCalendarInterval` 配置。
+
+**Linux (cron)**:
+编辑 crontab，修改执行频率。
 
 ### 日志管理
 
@@ -219,12 +199,16 @@ token-usage-analysis/
 - **保留期限**: 90 天（自动清理旧日志）
 - **收集频率**: 每小时 1 次
 
-### 定时任务频率
+### 📈 性能数据
 
-默认每小时执行一次（整点）。
+| 指标 | 数值 |
+|------|------|
+| 单次收集耗时 | ~1-3 秒 |
+| 日志日增长量 | ~50-150 KB/天 |
+| 内存占用 | <50MB |
+| CPU 占用 | 瞬时 <5% |
 
-- **macOS (launchd)**：编辑 `services/com.token-usage.collector.plist`
-- **Linux (cron)**：编辑 crontab
+**实际测试环境**: macOS 14.x, OpenClaw 0.9.x, 2 个活跃 Agent
 
 ---
 
@@ -238,37 +222,38 @@ token-usage-analysis/
 - ✅ 仅读取本地 session 文件中的 usage 字段
 - ✅ 日志文件仅包含用量统计，不含对话内容
 
-### Cost 字段口径说明
+详细审计报告：[SECURITY_AUDIT.md](SECURITY_AUDIT.md)
 
-- 报告中的 `Cost` 来自 session 行内 `usage.cost.total`（若该字段存在）
-- 若你的环境不提供成本字段，`Cost` 可能为 `0` 或显示为 `NA`
+### 数据访问范围
 
-详细审计报告见：`SECURITY_AUDIT.md`
+**读取**:
+- `~/.openclaw/agents/*/sessions/*.jsonl` - 仅读取 usage 字段（Token 统计）
+
+**写入**:
+- `~/.openclaw/logs/session-usage.log` - 用量日志
+- `~/.openclaw/logs/token-usage-collector.log` - 收集器运行日志
 
 ---
 
 ## ❓ 常见问题
 
-### Q: 为什么查询时显示“没有数据”？
+### Q: 为什么查询时显示"没有数据"？
 
-可能原因：
-1. 刚安装，数据还在积累中
-2. 定时任务未正常运行
-3. 所选时间范围内 session 没有有效变化
+**A**: 可能原因：
+1. 刚安装技能，数据还在积累中（建议 24 小时后查询）
+2. 定时任务未正常运行（运行 `collect-usage --diagnose` 检查）
 
-### Q: 为什么有些日期是 0？
+### Q: 如何修改收集频率？
 
-因为趋势图默认展示**最近 7 个自然日**。如果某天没有有效增量，会显示为 0。
+**A**: 编辑 `services/com.token-usage.collector.plist`，修改 `StartCalendarInterval` 配置。
 
-### Q: 为什么 Token 不高但 Cost 看起来很高？
+### Q: 日志文件太大怎么办？
 
-这通常说明：
-- 成本统计口径发生变化
-- 底层 `usage.cost.total` 存在异常
-- 该日期发生了不成比例的费用增长
+**A**: 自动轮转已启用，也可手动运行 `collect-usage --cleanup` 清理旧日志。
 
 ### Q: 如何卸载？
 
+**A**: 运行以下命令：
 ```bash
 ~/.openclaw/workspace/skills/token-usage-analysis/uninstall.sh
 ```
@@ -277,13 +262,12 @@ token-usage-analysis/
 
 ## 📝 更新日志
 
-### v1.1.0 (2026-03-11)
+### v1.0.1 (2026-03-10) - 🆕 即将发布
 
-- ✅ 将 Skill 重构为**对话优先**模式
-- ✅ 固化结果输出模板
-- ✅ 新增 `【7 天趋势图】` 文本柱状图
-- ✅ 新增异常提示与一句话判断
-- ✅ README 同步到最新逻辑
+- 📝 更新 README，添加真实输出示例
+- 📊 添加性能数据表格
+- ✅ 完善安装验证步骤
+- 🔧 优化安装脚本，增加详细输出
 
 ### v1.0.0 (2026-03-09)
 
@@ -292,18 +276,51 @@ token-usage-analysis/
 - ✅ 支持多维度用量分析（按 Agent/日期/时间范围）
 - ✅ 支持日志自动轮转（10MB 限制）和清理（90 天保留）
 - ✅ 跨平台支持（macOS launchd / Linux cron）
+- ✅ 通过安全审计，无敏感信息泄露
+- 📊 支持 6 种时间范围查询（24h/7d/30d/周末/上周/自定义）
+- 💡 多 Agent 用量分布百分比显示
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 开启 Pull Request
+
+---
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+---
+
+## 🙏 致谢
+
+- [OpenClaw](https://openclaw.ai) - 强大的 AI 助手框架
+- [ClawHub](https://clawhub.com) - OpenClaw 技能市场
 
 ---
 
 ## 📞 支持
 
-遇到问题时建议按顺序排查：
+遇到问题？
 
 1. 运行诊断：`collect-usage --diagnose`
 2. 查看日志：`~/.openclaw/logs/token-usage-collector.log`
-3. 检查定时任务是否正常运行
-4. 检查 `session-usage.log` 是否持续增长
+3. 提交 Issue：[GitHub Issues](https://github.com/jackwude/token-usage-analysis/issues)
 
 ---
 
+<div align="center">
+
 **Made with ❤️ by 麻辣小龙虾 🦞**
+
+[⭐ Star this repo](https://github.com/jackwude/token-usage-analysis) if you find it useful!
+
+</div>

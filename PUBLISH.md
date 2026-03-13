@@ -14,16 +14,6 @@
 
 ---
 
-## 📌 当前发布信息
-
-- **名称**: token-usage-analysis
-- **版本**: 1.1.0
-- **仓库**: https://github.com/jackwude/token-usage-analysis
-- **分支**: main
-- **定位**: 自动收集 + 对话式分析 OpenClaw Token 用量
-
----
-
 ## 🚀 发布方式
 
 ### 方式 1：ClawHub 发布（推荐）
@@ -32,63 +22,105 @@
 # 1. 进入技能目录
 cd ~/.openclaw/workspace/skills/token-usage-analysis
 
-# 2. 检查元信息
+# 2. 验证 clawhub.yaml
 cat clawhub.yaml
 
 # 3. 发布到 ClawHub
+# 注意：需要 clawhub CLI 工具
 clawhub publish .
+
+# 或者通过网页上传
+# 访问：https://clawhub.com/publish
+# 上传整个目录
 ```
 
-### 方式 2：GitHub 仓库
+### 方式 2：打包分享
 
 ```bash
-cd ~/.openclaw/workspace/skills/token-usage-analysis
-git push origin main
-```
-
-### 方式 3：打包分享
-
-```bash
+# 1. 打包技能
 cd ~/.openclaw/workspace/skills/
 tar -czf token-usage-analysis.tar.gz token-usage-analysis/
+
+# 2. 分享给朋友
+# 发送文件：token-usage-analysis.tar.gz
+
+# 3. 朋友安装
+tar -xzf token-usage-analysis.tar.gz -C ~/.openclaw/workspace/skills/
+~/.openclaw/workspace/skills/token-usage-analysis/install.sh
+```
+
+### 方式 3：GitHub 仓库
+
+```bash
+# 1. 创建 GitHub 仓库
+# https://github.com/your-username/token-usage-analysis
+
+# 2. 推送代码
+cd ~/.openclaw/workspace/skills/token-usage-analysis
+git init
+git add .
+git commit -m "Initial release: token-usage-analysis v1.0.0"
+git remote add origin https://github.com/your-username/token-usage-analysis.git
+git push -u origin main
+
+# 3. 分享仓库链接
+# https://github.com/your-username/token-usage-analysis
 ```
 
 ---
 
 ## 📋 安装说明（给用户）
 
-### GitHub 安装
+### 快速安装
 
 ```bash
-git clone https://github.com/jackwude/token-usage-analysis.git ~/.openclaw/workspace/skills/token-usage-analysis
+# 方式 A：通过 ClawHub（如果已发布）
+clawhub install token-usage-analysis
+
+# 方式 B：手动安装
+# 1. 下载技能包
+# 2. 解压到 ~/.openclaw/workspace/skills/
+# 3. 运行安装脚本
 ~/.openclaw/workspace/skills/token-usage-analysis/install.sh
 ```
 
 ### 验证安装
 
 ```bash
-~/.openclaw/bin/collect-usage --diagnose
+# 检查定时任务
+# macOS
+launchctl list | grep token-usage
+
+# Linux
+crontab -l | grep token-usage
+
+# 手动触发收集
 ~/.openclaw/bin/collect-usage
-python3 ~/.openclaw/workspace/skills/token-usage-analysis/src/analyzer.py 7d
+
+# 诊断状态
+~/.openclaw/bin/collect-usage --diagnose
 ```
 
 ---
 
-## 📊 版本亮点
+## 📊 技能信息
 
-### v1.1.0 (2026-03-11)
-- ✅ 重构为**对话优先**模式
-- ✅ 固化五段式结果输出模板
-- ✅ 新增 `【7 天趋势图】` 文本柱状图
-- ✅ 新增异常提示与一句话判断
-- ✅ README / SKILL / 输出模板文档同步
-- ✅ 新增 `.gitignore`，忽略 Python 缓存文件
+- **名称**: token-usage-analysis
+- **版本**: 1.0.0
+- **作者**: 麻辣小龙虾 🦞
+- **描述**: OpenClaw Token 用量分析工具
+- **许可证**: MIT
 
-### v1.0.0 (2026-03-09)
-- 初始版本发布
-- 支持每小时自动收集
-- 支持多维度用量分析
-- 支持日志自动轮转和清理
+### 功能
+- ✅ 每小时自动收集 Token 用量
+- ✅ 按 Agent/日期/时间范围分析
+- ✅ 日志自动轮转（10MB + 90 天）
+- ✅ 跨平台支持（macOS/Linux）
+
+### 系统要求
+- Python 3.7+
+- macOS 或 Linux
+- OpenClaw 0.9.0+
 
 ---
 
@@ -105,10 +137,27 @@ python3 ~/.openclaw/workspace/skills/token-usage-analysis/src/analyzer.py 7d
 
 ---
 
+## 📝 更新日志
+
+### v1.0.0 (2026-03-09)
+- 初始版本发布
+- 支持每小时自动收集
+- 支持多维度用量分析
+- 支持日志自动轮转和清理
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+仓库地址：（待添加）
+
+---
+
 ## 📞 支持
 
-遇到问题：
+遇到问题？
 1. 运行诊断：`collect-usage --diagnose`
 2. 查看日志：`~/.openclaw/logs/token-usage-collector.log`
-3. 仓库地址：https://github.com/jackwude/token-usage-analysis
-4. Issue 页面：https://github.com/jackwude/token-usage-analysis/issues
+3. 提交 Issue：（待添加）
