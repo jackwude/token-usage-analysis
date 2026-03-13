@@ -104,39 +104,32 @@ ls -lh ~/.openclaw/logs/session-usage.log
 ------------------------------------------------------------
   📅 2026-03-07 (周六):
      Token: 2,313,060 (in=2,233,648, out=79,412)
-     Cost:  $7.73
      Sessions: 20
   📅 2026-03-08 (周日):
      Token: 7,093,884 (in=6,987,052, out=106,832)
-     Cost:  $23.23
      Sessions: 32
   📅 2026-03-09 (周一):
      Token: 6,174,705 (in=6,140,854, out=33,851)
-     Cost:  $0.00
      Sessions: 31
 
   📈 合计:
      Token: 15,581,649 (in=15,361,554, out=220,095)
-     Cost:  $30.96
      Sessions: 93
 
 📊 Agent: tg-office
 ------------------------------------------------------------
   📅 2026-03-07 (周六):
      Token: 352,734 (in=332,800, out=19,934)
-     Cost:  $1.28
      Sessions: 3
 
   📈 合计:
      Token: 366,253 (in=345,698, out=20,555)
-     Cost:  $1.31
      Sessions: 7
 
 ======================================================================
 📊 总计（所有 Agent）
 ------------------------------------------------------------
 总 Token: 15,947,902 (in=15,707,252, out=240,650)
-总 Cost: $32.27
 总 Sessions: 100
 
 💡 用量分布:
@@ -172,10 +165,13 @@ token-usage-analysis/
 ├── install.sh                        # 安装脚本
 ├── uninstall.sh                      # 卸载脚本
 ├── src/
-│   ├── collector.py                  # 日志收集器
+│   ├── collector.py                  # 日志收集器（增量统计）
 │   └── analyzer.py                   # 分析脚本
-└── services/
-    └── com.token-usage.collector.plist  # macOS 定时任务配置
+├── services/
+│   └── com.token-usage.collector.plist  # macOS 定时任务配置
+└── logs/  (运行时生成)
+    ├── session-usage.log             # 用量日志
+    └── collector-state.json          # 增量统计状态文件
 ```
 
 ---
@@ -198,6 +194,7 @@ token-usage-analysis/
 - **大小限制**: 10MB（超出自动轮转压缩）
 - **保留期限**: 90 天（自动清理旧日志）
 - **收集频率**: 每小时 1 次
+- **状态文件**: `~/.openclaw/logs/collector-state.json`（记录增量进度）
 
 ### 📈 性能数据
 
@@ -262,7 +259,14 @@ token-usage-analysis/
 
 ## 📝 更新日志
 
-### v1.0.1 (2026-03-10) - 🆕 即将发布
+### v1.1.0 (2026-03-13) - 🆕 当前版本
+
+- 🔧 **修复**: collector.py 改为增量统计，避免重复累加历史数据
+- 🔧 **新增**: 状态文件 `collector-state.json` 记录每个 session 的累计进度
+- 🔧 **修复**: analyzer.py 移除 cost 显示（因模型配置中 cost 均为 0）
+- ✅ **数据准确性**: 与 OpenClaw Dashboard 保持一致
+
+### v1.0.1 (2026-03-10)
 
 - 📝 更新 README，添加真实输出示例
 - 📊 添加性能数据表格
