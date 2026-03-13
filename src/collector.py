@@ -97,15 +97,17 @@ def scan_session_file(session_file):
                 if '"usage"' in line:
                     try:
                         data = json.loads(line)
-                        usage = data.get('usage', {})
-                        tokens_in += usage.get('input', 0)
-                        tokens_out += usage.get('output', 0)
-                        total_cost += usage.get('total', 0)
+                        # usage 可能在根级别，也可能在 message 对象里
+                        usage = data.get('usage', {}) or data.get('message', {}).get('usage', {})
+                        # 支持两种字段格式：input/output 或 input_tokens/output_tokens
+                        tokens_in += usage.get('input', usage.get('input_tokens', 0))
+                        tokens_out += usage.get('output', usage.get('output_tokens', 0))
+                        total_cost += usage.get('total', usage.get('totalTokens', 0))
                     except json.JSONDecodeError:
                         # 降级：正则提取
-                        input_match = re.search(r'"input":(\d+)', line)
-                        output_match = re.search(r'"output":(\d+)', line)
-                        cost_match = re.search(r'"total":([0-9.]+)', line)
+                        input_match = re.search(r'"input"(?:_tokens)?:(\d+)', line)
+                        output_match = re.search(r'"output"(?:_tokens)?:(\d+)', line)
+                        cost_match = re.search(r'"total"(?:Tokens)?:(\d+)', line)
                         
                         if input_match:
                             tokens_in += int(input_match.group(1))
@@ -146,17 +148,11 @@ def collect_usage():
         if not sessions_dir.exists():
             continue
         
-        # 找出最近 2 小时内修改过的 jsonl 文件
+        # 扫描所有 jsonl 文件（包括历史 session）
         for session_file in sessions_dir.glob("*.jsonl"):
-            # 检查文件修改时间
-            mtime = datetime.fromtimestamp(session_file.stat().st_mtime)
-            age_minutes = (datetime.now() - mtime).total_seconds() / 60
-            
-            if age_minutes > 120:
-                continue
-            
             session_id = session_file.stem
             state_key = f"{agent_id}:{session_id}"
+            mtime = datetime.fromtimestamp(session_file.stat().st_mtime)
             
             # 扫描 session 文件，获取当前累计值
             current_in, current_out, current_cost, model = scan_session_file(session_file)
