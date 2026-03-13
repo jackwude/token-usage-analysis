@@ -2,6 +2,7 @@
 """
 Token Usage Collector
 每小时收集 OpenClaw 各 Agent 的 Token 用量快照（增量统计）
+支持 Bailian 模型的 tiktoken 估算
 """
 import os
 import sys
@@ -9,6 +10,28 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
+
+# Bailian 模型定价（元/1K tokens）
+BAILIAN_PRICING = {
+    "qwen3.5-plus": {"input": 0.004, "output": 0.012},
+    "qwen3-max-2026-01-23": {"input": 0.02, "output": 0.06},
+    "qwen3-coder-next": {"input": 0.002, "output": 0.006},
+    "qwen3-coder-plus": {"input": 0.004, "output": 0.012},
+    "MiniMax-M2.5": {"input": 0.002, "output": 0.008},
+    "glm-5": {"input": 0.001, "output": 0.004},
+    "glm-4.7": {"input": 0.001, "output": 0.004},
+    "kimi-k2.5": {"input": 0.002, "output": 0.008},
+}
+
+# 尝试导入 tiktoken（用于 Bailian 模型估算）
+try:
+    import tiktoken
+    TIKTOKEN_AVAILABLE = True
+    # Qwen 使用 cl100k_base 编码器
+    BAILIAN_ENCODER = tiktoken.get_encoding("cl100k_base")
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+    BAILIAN_ENCODER = None
 
 # 配置
 LOG_DIR = Path.home() / ".openclaw" / "logs"
@@ -74,12 +97,34 @@ def save_state(state):
         json.dump(state, f, indent=2, ensure_ascii=False)
 
 
+def estimate_bailian_tokens(text, model="qwen3.5-plus"):
+    """用 tiktoken 估算 Bailian 模型的 Token 数"""
+    if not TIKTOKEN_AVAILABLE or BAILIAN_ENCODER is None:
+        return 0
+    
+    try:
+        tokens = BAILIAN_ENCODER.encode(text)
+        return len(tokens)
+    except:
+        return 0
+
+
+def estimate_bailian_cost(model, tokens_in, tokens_out):
+    """估算 Bailian 模型的成本"""
+    pricing = BAILIAN_PRICING.get(model, BAILIAN_PRICING["qwen3.5-plus"])
+    input_cost = (tokens_in / 1000) * pricing["input"]
+    output_cost = (tokens_out / 1000) * pricing["output"]
+    return input_cost + output_cost
+
+
 def scan_session_file(session_file):
-    """扫描 session 文件，返回累计 token 数和模型信息"""
+    """扫描 session 文件，返回累计 token 数和模型信息（支持 Bailian 估算）"""
     tokens_in = 0
     tokens_out = 0
     total_cost = 0.0
     model = "unknown"
+    is_bailian = False
+    bailian_messages = []  # 存储需要估算的 message
     
     try:
         with open(session_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -92,6 +137,9 @@ def scan_session_file(session_file):
             if model_match:
                 model = model_match.group(1)
             
+            # 检查是否是 Bailian 模型
+            is_bailian = model in BAILIAN_PRICING or "qwen" in model.lower() or "glm" in model.lower() or "kimi" in model.lower()
+            
             # 累加所有 usage
             for line in content.split('\n'):
                 if '"usage"' in line:
@@ -99,10 +147,28 @@ def scan_session_file(session_file):
                         data = json.loads(line)
                         # usage 可能在根级别，也可能在 message 对象里
                         usage = data.get('usage', {}) or data.get('message', {}).get('usage', {})
-                        # 支持两种字段格式：input/output 或 input_tokens/output_tokens
-                        tokens_in += usage.get('input', usage.get('input_tokens', 0))
-                        tokens_out += usage.get('output', usage.get('output_tokens', 0))
-                        total_cost += usage.get('total', usage.get('totalTokens', 0))
+                        
+                        # 提取 usage 数据
+                        input_val = usage.get('input', usage.get('input_tokens', usage.get('prompt_tokens', 0)))
+                        output_val = usage.get('output', usage.get('output_tokens', usage.get('completion_tokens', 0)))
+                        total_val = usage.get('total', usage.get('totalTokens', 0))
+                        
+                        # 如果 usage 有真实数据，直接使用
+                        if input_val > 0 or output_val > 0:
+                            tokens_in += input_val
+                            tokens_out += output_val
+                            total_cost += total_val
+                        # 如果是 Bailian 模型且 usage 为 0，收集 message 用于估算
+                        elif is_bailian and TIKTOKEN_AVAILABLE:
+                            msg = data.get('message', {})
+                            if msg.get('role') == 'assistant':
+                                content_blocks = msg.get('content', [])
+                                if isinstance(content_blocks, list):
+                                    for block in content_blocks:
+                                        if isinstance(block, dict) and block.get('type') == 'text':
+                                            text = block.get('text', '')
+                                            if text:
+                                                bailian_messages.append(text)
                     except json.JSONDecodeError:
                         # 降级：正则提取
                         input_match = re.search(r'"input"(?:_tokens)?:(\d+)', line)
@@ -115,6 +181,23 @@ def scan_session_file(session_file):
                             tokens_out += int(output_match.group(1))
                         if cost_match:
                             total_cost += float(cost_match.group(1))
+        
+        # 对于 Bailian 模型，如果 usage 全为 0，用 tiktoken 估算
+        if is_bailian and tokens_in == 0 and tokens_out == 0 and TIKTOKEN_AVAILABLE and bailian_messages:
+            print(f"🔮 Bailian 模型 {model} 未记录 usage，使用 tiktoken 估算...", file=sys.stderr)
+            # 估算 output tokens（assistant message）
+            for text in bailian_messages:
+                output_tokens = estimate_bailian_tokens(text, model)
+                tokens_out += output_tokens
+            
+            # 估算 input tokens（简化：假设 input ≈ output * 0.5，实际应该解析 user message）
+            # TODO: 更精确的方法是解析所有 user message 并估算
+            tokens_in = int(tokens_out * 0.5)
+            
+            # 估算成本
+            total_cost = estimate_bailian_cost(model, tokens_in, tokens_out)
+            print(f"  估算结果：input={tokens_in}, output={tokens_out}, cost=¥{total_cost:.4f}", file=sys.stderr)
+            
     except Exception as e:
         print(f"⚠️ 读取文件失败 {session_file}: {e}", file=sys.stderr)
     
