@@ -100,6 +100,7 @@ def collect_usage(start: datetime, end: datetime):
         return None, f"❌ 日志文件不存在：{log_path}"
 
     session_daily = defaultdict(list)
+    model_sessions = defaultdict(set)  # model -> set of sessions
 
     with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
@@ -114,11 +115,13 @@ def collect_usage(start: datetime, end: datetime):
 
             agent = m['agent']
             session = m['session']
+            model = m['model']
             tin = int(m['tin'])
             tout = int(m['tout'])
             cost = float(m['cost'])
             date_str = ts.strftime('%Y-%m-%d')
-            session_daily[(agent, session, date_str)].append((ts, tin, tout, cost))
+            session_daily[(agent, session, date_str)].append((ts, tin, tout, cost, model))
+            model_sessions[model].add(session)
 
     agent_daily = defaultdict(lambda: defaultdict(lambda: {
         'total_in': 0,
@@ -127,13 +130,17 @@ def collect_usage(start: datetime, end: datetime):
         'sessions': set(),
     }))
 
+    model_totals = defaultdict(lambda: {'tokens_in': 0, 'tokens_out': 0, 'cost': 0.0, 'sessions': set()})
+
     raw_cost_daily = defaultdict(float)
     raw_cost_agent = defaultdict(float)
+    raw_cost_model = defaultdict(float)
     raw_cost_total = 0.0
 
     for snapshots in session_daily.values():
-        for _, _, _, cost in snapshots:
+        for _, _, _, cost, model in snapshots:
             raw_cost_total += cost
+            raw_cost_model[model] += cost
 
     for (agent, _session, date_str), snapshots in session_daily.items():
         day_snapshot_cost = sum(item[3] for item in snapshots)
@@ -156,6 +163,14 @@ def collect_usage(start: datetime, end: datetime):
         agent_daily[agent][date_str]['cost'] += delta_cost
         agent_daily[agent][date_str]['sessions'].add(_session)
 
+        # 累加模型统计（从最后一次快照获取 model）
+        if last:
+            model = last[4] if len(last) > 4 else "unknown"
+            model_totals[model]['tokens_in'] += delta_in
+            model_totals[model]['tokens_out'] += delta_out
+            model_totals[model]['cost'] += delta_cost
+            model_totals[model]['sessions'].add(_session)
+
     if not agent_daily and raw_cost_total <= 0:
         return None, "⚠️ 该时间段内没有检测到有效的用量数据"
 
@@ -163,7 +178,10 @@ def collect_usage(start: datetime, end: datetime):
         'agent_daily': agent_daily,
         'raw_cost_daily': raw_cost_daily,
         'raw_cost_agent': raw_cost_agent,
+        'raw_cost_model': raw_cost_model,
         'raw_cost_total': raw_cost_total,
+        'model_totals': dict(model_totals),
+        'model_sessions': {k: len(v) for k, v in model_sessions.items()},
     }, None
 
 
@@ -206,7 +224,7 @@ def build_observations(agent_totals: dict, daily_totals: dict, peak_date: str, a
     else:
         observations.append("未发现明显异常波动")
 
-    return observations[:3]
+    return observations[:2]
 
 
 def build_one_liner(label: str, top_agent: str, peak_date: str, anomalies: list) -> str:
@@ -221,32 +239,24 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
         return err
 
     agent_daily = data['agent_daily']
-    raw_cost_daily = data['raw_cost_daily']
-    raw_cost_total = data['raw_cost_total']
 
     agent_totals = {}
-    agent_costs = {}
     agent_sessions = {}
     daily_totals = defaultdict(int)
-    daily_costs = defaultdict(float)
 
     for agent, daily_map in agent_daily.items():
         total_in = sum(d['total_in'] for d in daily_map.values())
         total_out = sum(d['total_out'] for d in daily_map.values())
-        total_cost = sum(d['cost'] for d in daily_map.values())
         sessions = set()
         for date_str, d in daily_map.items():
             day_total = d['total_in'] + d['total_out']
             daily_totals[date_str] += day_total
-            daily_costs[date_str] += d['cost']
             sessions.update(d['sessions'])
 
         agent_totals[agent] = total_in + total_out
-        agent_costs[agent] = total_cost
         agent_sessions[agent] = len(sessions)
 
     grand_total = sum(agent_totals.values())
-    grand_cost = sum(agent_costs.values())
     all_sessions = sum(agent_sessions.values())
 
     top_agent = max(agent_totals.items(), key=lambda x: x[1])[0] if agent_totals else "无"
@@ -254,26 +264,14 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     peak_date = max(daily_totals.items(), key=lambda x: x[1])[0] if daily_totals else "无"
 
     anomalies = []
-    for date_str in sorted(set(list(daily_totals.keys()) + list(raw_cost_daily.keys()))):
-        token = daily_totals.get(date_str, 0)
-        raw_cost = raw_cost_daily.get(date_str, 0.0)
-        calc_cost = daily_costs.get(date_str, 0.0)
-        if token == 0 and raw_cost > 0:
-            anomalies.append(f"{date_str} Token 为 0，但日志中存在费用记录")
-            break
-        if token > 0 and calc_cost / max(token, 1) > 0.0005:
-            anomalies.append(f"{date_str} Cost 相对 Token 偏高，建议核查 cost 口径")
-            break
-
-    if not anomalies and grand_total == 0 and raw_cost_total > 0:
-        anomalies.append("当前区间内未统计到 Token 增量，但存在费用记录")
+    if grand_total == 0:
+        anomalies.append("当前区间内未统计到 Token 增量")
 
     lines = []
     lines.append(f"📊 Token 用量分析（{label}）")
     lines.append("")
     lines.append("【结论】")
     lines.append(f"- 总 Token：{grand_total:,}")
-    lines.append(f"- 总 Cost：${grand_cost:.4f}" if grand_cost > 0 else "- 总 Cost：不可用")
     lines.append(f"- 主消耗 Agent：{top_agent}（{top_agent_pct:.1f}%）" if top_agent != "无" else "- 主消耗 Agent：无")
     lines.append(f"- 峰值日期：{peak_date}")
     lines.append(f"- 异常提示：{anomalies[0]}" if anomalies else "- 异常提示：无明显异常")
@@ -286,16 +284,36 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
             pct = (token_total / grand_total * 100) if grand_total > 0 else 0.0
             lines.append(f"{idx}. {agent}")
             lines.append(f"   - Token：{token_total:,}")
-            lines.append(f"   - Cost：${agent_costs[agent]:.4f}" if agent_costs[agent] > 0 else "   - Cost：不可用")
             lines.append(f"   - Sessions：{agent_sessions[agent]}")
             lines.append(f"   - 占比：{pct:.1f}%")
             lines.append("")
     else:
         lines.append("1. 无有效 Agent 数据")
         lines.append("   - Token：0")
-        lines.append("   - Cost：不可用")
         lines.append("   - Sessions：0")
         lines.append("   - 占比：0.0%")
+        lines.append("")
+
+    # 模型维度统计
+    lines.append("【模型分布】")
+    model_totals = data.get('model_totals', {})
+    model_sessions = data.get('model_sessions', {})
+    
+    if model_totals:
+        sorted_models = sorted(model_totals.items(), key=lambda x: x[1]['tokens_in'] + x[1]['tokens_out'], reverse=True)
+        for idx, (model, stats) in enumerate(sorted_models, start=1):
+            total_tokens = stats['tokens_in'] + stats['tokens_out']
+            pct = (total_tokens / grand_total * 100) if grand_total > 0 else 0.0
+            cost = stats['cost']
+            sessions_count = len(stats['sessions'])
+            lines.append(f"{idx}. {model}")
+            lines.append(f"   - Token：{total_tokens:,} (in={stats['tokens_in']:,}, out={stats['tokens_out']:,})")
+            lines.append(f"   - Sessions：{sessions_count}")
+            lines.append(f"   - 占比：{pct:.1f}%")
+            lines.append(f"   - 成本：${cost:.4f}")
+            lines.append("")
+    else:
+        lines.append("1. 无模型数据")
         lines.append("")
 
     lines.append("【趋势图】")
@@ -309,7 +327,10 @@ def analyze_usage(start: datetime, end: datetime, label: str) -> str:
     lines.append("")
 
     lines.append("【一句话判断】")
-    lines.append(build_one_liner(label, top_agent, peak_date, anomalies))
+    if anomalies:
+        lines.append(f"{label} 的用量主要集中在 {top_agent}，峰值在 {peak_date}，并存在异常信号，建议顺手核查。")
+    else:
+        lines.append(f"{label} 的用量主要集中在 {top_agent}，整体分布清晰，暂无明显异常。")
 
     return "\n".join(lines)
 
