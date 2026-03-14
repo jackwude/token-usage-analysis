@@ -1,0 +1,85 @@
+{
+  "timestamp": "2026-03-12T19:37:45.962542",
+  "keyword": "寻秦记",
+  "rounds": 3,
+  "login_status": {
+    "profile": false,
+    "state": false
+  },
+  "profile": {
+    "results": [
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 3184,
+          "总耗时": 3184
+        },
+        "logged_in": false
+      },
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 1572,
+          "总耗时": 1572
+        },
+        "logged_in": false
+      },
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 1103,
+          "总耗时": 1103
+        },
+        "logged_in": false
+      }
+    ],
+    "stats": {
+      "mean": 1953,
+      "median": 1572,
+      "min": 1103,
+      "max": 3184,
+      "success_rate": 0.0
+    }
+  },
+  "state": {
+    "results": [
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 4084,
+          "总耗时": 4084
+        },
+        "logged_in": false
+      },
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 3678,
+          "总耗时": 3678
+        },
+        "logged_in": false
+      },
+      {
+        "success": false,
+        "error": "未登录",
+        "timings": {
+          "首页加载": 2455,
+          "总耗时": 2455
+        },
+        "logged_in": false
+      }
+    ],
+    "stats": {
+      "mean": 3406,
+      "median": 3678,
+      "min": 2455,
+      "max": 4084,
+      "success_rate": 0.0
+    }
+  }
+}

@@ -166,13 +166,19 @@ def _should_smart_cleanup() -> bool:
 
 
 def _cleanup() -> None:
-    # 任务结束后统一回收 xiaohongshu-mcp，并强退 Docker Desktop。
-    # 顺序：停容器 -> quit app -> 等待 -> 定向 kill 残留进程。
-    if _container_running() or _container_exists():
+    # 任务结束后统一回收 xiaohongshu-mcp 容器。
+    # 调试期间：不再自动退出 Docker Desktop，保持常驻以加快后续任务启动。
+    # 仅停止本任务启动的容器（如果容器原本就运行着则保留）。
+    if _container_running() and _STATE.container_started_by_us:
+        print("[runtime] 停止本任务启动的 xiaohongshu-mcp 容器...")
         _stop_container()
-    _quit_docker_desktop()
-    time.sleep(4)
-    _kill_docker_processes()
+    else:
+        print("[runtime] 容器为预先存在状态，保留不关闭")
+    
+    # 不再自动退出 Docker Desktop（调试期间保持开启）
+    print("[runtime] Docker Desktop 保持开启状态（调试模式）")
+    # _quit_docker_desktop()  # 已禁用
+    # _kill_docker_processes()  # 已禁用
 
 
 def cleanup_xhs_mcp() -> None:

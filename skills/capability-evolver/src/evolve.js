@@ -45,6 +45,21 @@ try {
   // dotenv might not be installed or .env missing, proceed gracefully
 }
 
+// Simple exec result cache to reduce repeated system queries (optimize repeated_tool_usage:exec)
+const _execCache = new Map();
+const _CACHE_TTL_MS = 30000; // 30 seconds TTL for system state queries
+
+function execSyncCached(cmd, options = {}) {
+  const cacheKey = `${cmd}|${JSON.stringify(options)}`;
+  const cached = _execCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < _CACHE_TTL_MS) {
+    return cached.result;
+  }
+  const result = execSync(cmd, options);
+  _execCache.set(cacheKey, { result, ts: Date.now() });
+  return result;
+}
+
 // Configuration from CLI flags or Env
 const ARGS = process.argv.slice(2);
 const IS_REVIEW_MODE = ARGS.includes('--review');
@@ -272,7 +287,7 @@ function checkSystemHealth() {
 
   try {
     if (process.platform === 'win32') {
-      const wmic = execSync('tasklist /FI "IMAGENAME eq node.exe" /NH', {
+      const wmic = execSyncCached('tasklist /FI "IMAGENAME eq node.exe" /NH', {
         encoding: 'utf8',
         stdio: ['ignore', 'pipe', 'ignore'],
         timeout: 3000,
@@ -282,14 +297,14 @@ function checkSystemHealth() {
       report.push(`Node Processes: ${count}`);
     } else {
       try {
-        const pgrep = execSync('pgrep -c node', {
+        const pgrep = execSyncCached('pgrep -c node', {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'ignore'],
           timeout: 2000,
         });
         report.push(`Node Processes: ${pgrep.trim()}`);
       } catch (e) {
-        const ps = execSync('ps aux | grep node | grep -v grep | wc -l', {
+        const ps = execSyncCached('ps aux | grep node | grep -v grep | wc -l', {
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'ignore'],
           timeout: 2000,

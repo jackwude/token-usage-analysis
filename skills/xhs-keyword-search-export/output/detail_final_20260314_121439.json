@@ -1,0 +1,38 @@
+{
+  "details": [],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 0,
+    "failed_keywords": 1,
+    "empty_keywords": 0,
+    "insufficient_keywords": 0,
+    "total_details": 0,
+    "days_strong_check": 7,
+    "publish_time_filter": "",
+    "candidate_per_keyword": 5,
+    "need_per_keyword": 2,
+    "max_total": 30,
+    "failed_details": [],
+    "search": {
+      "timeout_ms": 90000,
+      "retry": 1,
+      "retry_sleep": 15.0
+    }
+  },
+  "per_keyword": {
+    "OPPO游戏助手更新后侧边栏没了": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 0,
+      "details_fetched": 0,
+      "skipped_bad_id": 0,
+      "reason": "无法解析 selector: xiaohongshu.search_feeds(keyword: 'OPPO游戏助手更新后侧边栏没了', filters: {sort_by: '最新'})"
+    }
+  },
+  "negative_filter": {
+    "enabled": false,
+    "lexicon": "",
+    "threshold": 2,
+    "max_detail_per_keyword": 20
+  }
+}

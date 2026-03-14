@@ -1,0 +1,60 @@
+{
+  "details": [
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "67fba64a000000001d003885",
+      "xsec_token": "ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "title": "苹果15",
+      "author_nickname": "科创说手机",
+      "publish_time": "2025-04-13 19:55:54",
+      "publish_ts": 1744545354000,
+      "note_type": "video",
+      "image_urls": "http://sns-webpic-qc.xhscdn.com/202603141238/f0ee6064809f5864c31529e537dd8e74/1040g2sg31g7e6mcdhc005pdonid3bmajfpkogjg!nd_dft_wlteh_webp_3",
+      "like_count": "391",
+      "comment_count": "29",
+      "collect_count": "53",
+      "url": "https://www.xiaohongshu.com/explore/67fba64a000000001d003885?xsec_token=ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "desc_full": "使用体验#数码[话题]# #实用数码技巧分享[话题]# #手机测评[话题]#",
+      "fetched_at": "2026-03-14T12:38:37+08:00",
+      "neg_flag": false,
+      "neg_score": 0,
+      "neg_labels": "",
+      "neg_reasons": "",
+      "error": ""
+    }
+  ],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 1,
+    "failed_keywords": 0,
+    "empty_keywords": 0,
+    "insufficient_keywords": 0,
+    "total_details": 1,
+    "days_strong_check": 0,
+    "publish_time_filter": "",
+    "candidate_per_keyword": 2,
+    "need_per_keyword": 1,
+    "max_total": 30,
+    "failed_details": [],
+    "search": {
+      "timeout_ms": 90000,
+      "retry": 1,
+      "retry_sleep": 15.0
+    }
+  },
+  "per_keyword": {
+    "iPhone 15 评测": {
+      "status": "success",
+      "count": 1,
+      "attempted": 1,
+      "details_fetched": 1,
+      "skipped_bad_id": 0
+    }
+  },
+  "negative_filter": {
+    "enabled": false,
+    "lexicon": "",
+    "threshold": 2,
+    "max_detail_per_keyword": 20
+  }
+}

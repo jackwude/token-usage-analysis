@@ -41,11 +41,22 @@ find "$agents_root" -mindepth 1 -maxdepth 1 -type d | while read -r agent_dir; d
     total_cost=0
 
     # 累加 usage（session 文件里 usage 是按消息记录的）
+    # 新格式："usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}}
     while IFS= read -r line; do
       if echo "$line" | grep -q '"usage"'; then
-        input=$(echo "$line" | grep -o '"input":[0-9]*' | head -1 | cut -d':' -f2 || true)
-        output=$(echo "$line" | grep -o '"output":[0-9]*' | head -1 | cut -d':' -f2 || true)
-        cost=$(echo "$line" | grep -o '"total":[0-9.]*' | head -1 | cut -d':' -f2 || true)
+        # 提取 usage 对象内容
+        usage_part=$(echo "$line" | grep -o '"usage":{[^}]*}' | head -1 || true)
+        if [ -n "${usage_part:-}" ]; then
+          input=$(echo "$usage_part" | grep -o '"input":[0-9]*' | head -1 | cut -d':' -f2 || true)
+          output=$(echo "$usage_part" | grep -o '"output":[0-9]*' | head -1 | cut -d':' -f2 || true)
+          # cost 是嵌套对象，提取 cost.total
+          cost=$(echo "$line" | grep -o '"cost":{[^}]*}' | head -1 | grep -o '"total":[0-9.]*' | head -1 | cut -d':' -f2 || true)
+        else
+          # 旧格式兜底
+          input=$(echo "$line" | grep -o '"input":[0-9]*' | head -1 | cut -d':' -f2 || true)
+          output=$(echo "$line" | grep -o '"output":[0-9]*' | head -1 | cut -d':' -f2 || true)
+          cost=$(echo "$line" | grep -o '"total":[0-9.]*' | head -1 | cut -d':' -f2 || true)
+        fi
 
         [ -n "${input:-}" ] && tokens_in=$((tokens_in + input))
         [ -n "${output:-}" ] && tokens_out=$((tokens_out + output))

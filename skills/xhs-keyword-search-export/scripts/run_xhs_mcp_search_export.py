@@ -86,18 +86,38 @@ def _read_keywords(path: str) -> list[str]:
 
 def _mcporter_call(selector: str, *, timeout_ms: int = 90000, retries: int = 1, retry_sleep: float = 8.0) -> Any:
     # mcporter call <selector> --output json --timeout <ms>
+    # 使用 --args 传递 JSON 参数（这是 xiaohongshu-mcp 的正确调用方式）
+    # 解析 selector 格式：search_feeds(keyword: 'xxx') -> {"keyword": "xxx"}
+    import re
+    match = re.search(r'search_feeds\(keyword:\s*([\'"])([^\'"]+)\1\)', selector)
+    if not match:
+        raise RuntimeError(f"无法解析 selector: {selector}")
+    keyword = match.group(2)
+    args_json = json.dumps({"keyword": keyword})
+    
+    # 计算正确的配置文件路径：scripts -> skill -> skills -> workspace
+    script_dir = Path(__file__).resolve().parent  # scripts/
+    skill_dir = script_dir.parent  # xhs-keyword-search-export/
+    skills_dir = skill_dir.parent  # skills/
+    workspace_dir = skills_dir.parent  # .openclaw/workspace/
+    config_path = workspace_dir / "config" / "mcporter.json"
+    print(f"  [DEBUG] config_path: {config_path}, exists: {config_path.exists()}")
     last_err = ""
     for attempt in range(retries + 1):
-        cmd = ["mcporter", "call", selector, "--output", "json", "--timeout", str(timeout_ms)]
+        # 使用 --config 参数指定配置文件路径
+        cmd = ["mcporter", "--config", str(config_path), "call", "xiaohongshu.search_feeds", "--args", args_json, "--output", "json", "--timeout", str(timeout_ms)]
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=max(30, timeout_ms // 1000 + 20))
         out = (p.stdout or "").strip()
+        err = (p.stderr or "").strip()
         if out:
             try:
                 return json.loads(out)
             except Exception:
-                last_err = f"mcporter output not json: {out[:200]}"
+                last_err = f"mcporter output not json: {out[:200]}, stderr: {err[:500]}"
         else:
-            last_err = (p.stderr or "empty output").strip()
+            last_err = f"empty output, stderr: {err[:500]}"
+
+        print(f"  [DEBUG] 尝试{attempt+1}: {last_err[:100]}")
 
         transient = any(k in last_err.lower() for k in ["timed out", "timeout", "offline", "connection refused", "bad gateway"])
         if attempt < retries and transient:
@@ -258,8 +278,8 @@ def _write_xlsx(path: str, rows: list[Row], summary: dict[str, Any], per_keyword
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--keywords-file", required=True)
-    ap.add_argument("--sort-by", default="最新")
-    ap.add_argument("--publish-time", default="一周内")
+    ap.add_argument("--sort-by", default="综合", help="排序方式：综合/最新/最热/最多点赞（默认综合）")
+    ap.add_argument("--publish-time", default="一周内", help="发布时间筛选（如'一周内'，留空表示不筛选；默认一周内）")
     ap.add_argument("--need-per-keyword", type=int, default=3)
     ap.add_argument("--candidate-per-keyword", type=int, default=20)
     ap.add_argument("--max-total", type=int, default=200)
@@ -284,6 +304,7 @@ def main() -> int:
         seen_note_ids: set[str] = set()
 
         total = 0
+        total_keywords = len(keywords)
         for kidx, kw in enumerate(keywords, start=1):
             if total >= args.max_total:
                 break
@@ -293,22 +314,28 @@ def main() -> int:
             reason = ""
 
             try:
-                selector = (
-                    f"xiaohongshu.search_feeds(keyword: {kw!r}, "
-                    f"filters: {{sort_by: {args.sort_by!r}, publish_time: {args.publish_time!r}}})"
-                )
+                print(f"[{kidx}/{total_keywords}] 开始处理关键词：{kw} (目标{args.need_per_keyword}条)")
+                print(f"  [DEBUG] 调用 search_feeds(keyword: {kw!r})")
 
                 _sleep_gate(kidx, args.sleep_min, args.sleep_max)
-                data = _mcporter_call(selector, timeout_ms=120000, retries=1, retry_sleep=10.0)
+                data = _mcporter_call(f"search_feeds(keyword: {kw!r})", timeout_ms=120000, retries=1, retry_sleep=10.0)
+                print(f"  [DEBUG] 返回数据 keys: {list(data.keys()) if isinstance(data, dict) else type(data)}")
                 feeds = data.get("feeds") or []
                 if not isinstance(feeds, list) or not feeds:
-                    raise RuntimeError("搜索结果为空")
+                    raise RuntimeError(f"搜索结果为空 data={str(data)[:200]}")
 
                 candidates = feeds[: max(1, args.candidate_per_keyword)]
-                for f in candidates:
+                total_candidates = len(candidates)
+                progress_interval = max(1, total_candidates // 4)  # 每 25% 播报一次
+
+                for cand_idx, f in enumerate(candidates, start=1):
                     if got >= args.need_per_keyword or total >= args.max_total:
                         break
                     attempted += 1
+
+                    # 进度播报
+                    if cand_idx % progress_interval == 0 or cand_idx == total_candidates:
+                        print(f"  [{kw}] 搜索列表进度：{cand_idx}/{total_candidates} (已获取{got}条)")
 
                     row = _extract_row(f, kw)
                     if not row:
@@ -322,10 +349,12 @@ def main() -> int:
                     total += 1
 
                 per_keyword[kw] = {"count": got, "attempted": attempted, "reason": reason}
+                print(f"  [{kw}] ✅ 完成：获取{got}条")
 
             except Exception as e:
                 failures[kw] = str(e)
                 per_keyword[kw] = {"count": got, "attempted": attempted, "reason": str(e)}
+                print(f"  [{kw}] ❌ 失败：{str(e)[:80]}")
 
         summary = {
             "executed_keywords": len(per_keyword),

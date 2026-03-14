@@ -1,0 +1,53 @@
+{
+  "results": [
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "67fba64a000000001d003885",
+      "xsec_token": "ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "title": "苹果15",
+      "author_nickname": "科创说手机",
+      "note_type": "video",
+      "like_count": "391",
+      "comment_count": "29",
+      "collect_count": "53",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141307/5c7dd634deb437d94ebdd627fb709362/1040g2sg31g7e6mcdhc005pdonid3bmajfpkogjg!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/67fba64a000000001d003885?xsec_token=ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "fetched_at": "2026-03-14T13:07:11"
+    },
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "6662c909000000000f00ea97",
+      "xsec_token": "ABKIVRo6HihETAWHS-sKj-6jTh-wkvYzq0Xx4xW8ZFL9Y=",
+      "title": "为什么不推荐任何人买iPhone15标准版",
+      "author_nickname": "🐅纹长猫",
+      "note_type": "normal",
+      "like_count": "4309",
+      "comment_count": "1410",
+      "collect_count": "505",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141307/adf184879a9654f29c7ca409661cba91/1040g2sg313o5939hiecg5obngqt0jt7n7ef1vug!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/6662c909000000000f00ea97?xsec_token=ABKIVRo6HihETAWHS-sKj-6jTh-wkvYzq0Xx4xW8ZFL9Y=",
+      "fetched_at": "2026-03-14T13:07:11"
+    }
+  ],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 1,
+    "failed_keywords": 0,
+    "total_items": 2,
+    "unique_note_ids": 2,
+    "failed_keywords_details": {},
+    "need_per_keyword": 2,
+    "candidate_per_keyword": 20,
+    "filters": {
+      "sort_by": "综合",
+      "publish_time": "一周内"
+    }
+  },
+  "per_keyword": {
+    "iPhone 15 评测": {
+      "count": 2,
+      "attempted": 2,
+      "reason": ""
+    }
+  }
+}
