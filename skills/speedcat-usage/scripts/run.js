@@ -67,12 +67,6 @@ function asJsonEvalResult(out) {
   return null;
 }
 
-function evalJson(js) {
-  const out = runAB(['eval', js]);
-  const parsed = asJsonEvalResult(out);
-  return parsed;
-}
-
 function currentUrl() {
   const out = runAB(['get', 'url'], { allowFail: true });
   const m = out.match(/https?:\/\/\S+/);
@@ -91,10 +85,11 @@ function clickVerifyIfNeeded() {
 }
 
 function isLoggedIn() {
-  const v = evalJson(`(() => {
+  const out = runAB(['eval', `(() => {
     const t = document.body?.innerText || '';
     return t.includes('Hi,') && t.includes('@') && !location.pathname.includes('/auth/login');
-  })()`);
+  })()`]);
+  const v = asJsonEvalResult(out);
   return Boolean(v);
 }
 
@@ -102,6 +97,11 @@ function loginWithCreds(email, password) {
   runAB(['open', LOGIN_URL]);
   runAB(['wait', '1500'], { allowFail: true });
   clickVerifyIfNeeded();
+  
+  // 使用 base64 编码传递敏感信息，避免特殊字符导致的语法错误
+  const emailB64 = Buffer.from(email, 'utf8').toString('base64');
+  const passB64 = Buffer.from(password, 'utf8').toString('base64');
+  
   runAB(['eval', `(() => {
     const setVal = (el, v) => {
       el.focus();
@@ -112,8 +112,10 @@ function loginWithCreds(email, password) {
     const emailEl = document.querySelector('input[type=email],input[name=email],input[placeholder*=邮箱],input[placeholder*=mail]');
     const passEl = document.querySelector('input[type=password],input[name=password],input[name=passwd],input[placeholder*=密码]');
     if (!emailEl || !passEl) return 'no-fields';
-    setVal(emailEl, ${JSON.stringify(email)});
-    setVal(passEl, ${JSON.stringify(password)});
+    const email = atob("${emailB64}");
+    const password = atob("${passB64}");
+    setVal(emailEl, email);
+    setVal(passEl, password);
     const remember = [...document.querySelectorAll('input[type=checkbox],label,span')].find(el => (el.innerText||'').includes('记住我'));
     if (remember && remember.click) remember.click();
     const btn = [...document.querySelectorAll('button,input[type=submit],a')].find(el => {
@@ -132,7 +134,7 @@ function loginWithCreds(email, password) {
 }
 
 function doCheckinBestEffort() {
-  const status = evalJson(`(() => {
+  const out = runAB(['eval', `(() => {
     const norm = s => (s || '').replace(/\s+/g, ' ').trim();
     const labels = [...document.querySelectorAll('a,button')].map(el => norm(el.innerText || el.textContent));
     if (labels.some(t => t.includes('明日再来'))) return '明日再来';
@@ -143,7 +145,9 @@ function doCheckinBestEffort() {
     if (!btn) return '-';
     btn.click();
     return 'clicked';
-  })()`);
+  })()`]);
+  
+  const status = asJsonEvalResult(out);
 
   if (status === 'clicked') {
     runAB(['wait', '1200'], { allowFail: true });
@@ -161,58 +165,12 @@ function doCheckinBestEffort() {
 }
 
 function extractData() {
-  const obj = evalJson(`(() => {
-    const text = (el) => ((el && el.textContent) ? el.textContent : '').replace(/\s+/g, ' ').trim();
-    const bodyText = document.body ? (document.body.innerText || '') : '';
-    const lines = bodyText.split('\n').map(s => (s || '').trim()).filter(Boolean);
-
-    const planH4 = [...document.querySelectorAll('h4')].find(x => /.+:/.test(text(x)) && !text(x).includes('剩余流量') && !text(x).includes('在线IP') && !text(x).includes('钱包余额'));
-    const plan_name = planH4 ? text(planH4).replace(/:.*$/, '').replace(/:$/, '') : null;
-
-    const dayLine = lines.find(s => s.includes('天') && /\d+/.test(s));
-    let days_left = null;
-    if (dayLine) {
-      const m = dayLine.match(/(\d+)\s*天/);
-      days_left = m ? m[1] : null;
-    }
-
-    const resetLine = lines.find(s => s.includes('流量重置时间')) || '';
-    const reset_date = resetLine.split(/[:：]/).slice(1).join(':').trim() || null;
-
-    const remLine = lines.find(s => s.includes('剩余流量') && /[0-9.]+\s*GB/i.test(s)) || '';
-    const remMatch = remLine.match(/([0-9.]+)\s*GB/i);
-    const remaining_gb = remMatch ? remMatch[1] : null;
-
-    const usedLine = lines.find(s => s.includes('今日已用')) || '';
-    const usedMatch = usedLine.match(/([0-9.]+)\s*GB/i);
-    const used_today_gb = usedMatch ? usedMatch[1] : null;
-
-    const walletLine = lines.find(s => s.includes('钱包余额')) || '';
-    const walletMatch = walletLine.match(/¥\s*([0-9.]+)/);
-    const wallet_cny = walletMatch ? walletMatch[1] : null;
-
-    const rebateLine = lines.find(s => s.includes('累计获得返利金额')) || '';
-    const rebateMatch = rebateLine.match(/¥\s*([0-9.]+)/);
-    const rebate_cny = rebateMatch ? rebateMatch[1] : null;
-
-    const onlineLine = lines.find(s => s.includes('在线IP')) || null;
-    const online_ip = onlineLine ? onlineLine.split(/[:：]/).slice(1).join(':').trim() || onlineLine : null;
-
-    const lastLine = lines.find(s => s.includes('上次使用')) || null;
-    const last_used = lastLine ? lastLine.split(/[:：]/).slice(1).join(':').trim() || lastLine : null;
-
-    const checkin = [...document.querySelectorAll('a,button')].map(x => text(x)).find(s => s.includes('明日再来') || s.includes('签到')) || null;
-
-    return {
-      plan_name, days_left, reset_date,
-      remaining_gb, used_today_gb,
-      wallet_cny, rebate_cny,
-      online_ip, last_used,
-      checkin
-    };
-  })()`);
-
-  return obj || {};
+  // 使用独立的 JS 文件避免模板字符串转义问题
+  const extractScript = path.join(__dirname, 'extract-data.js');
+  const script = fs.readFileSync(extractScript, 'utf8');
+  const out = runAB(['eval', script]);
+  const parsed = asJsonEvalResult(out);
+  return parsed || {};
 }
 
 function printReport({ reason = null, data = {} }) {
@@ -260,20 +218,27 @@ function main() {
   try {
     fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
 
+    // 尝试加载状态，但失败也不影响后续
     if (fs.existsSync(STATE_PATH)) {
       runAB(['state', 'load', STATE_PATH], { allowFail: true });
     }
 
+    // 增加等待时间，应对网络慢
     runAB(['open', USER_URL]);
-    runAB(['wait', '1800'], { allowFail: true });
+    runAB(['wait', '3000'], { allowFail: true });
     clickVerifyIfNeeded();
+    
+    // 再等一会确保页面加载完成
+    runAB(['wait', '2000'], { allowFail: true });
 
     let logged = isLoggedIn();
 
     if (!logged) {
+      console.error('未检测到登录状态，尝试自动登录...');
       const { email, password } = readCreds();
       if (!email || !password) throw new Error('未找到 SpeedCat 账号密码');
       loginWithCreds(email, password);
+      runAB(['wait', '3000'], { allowFail: true });
       logged = isLoggedIn();
       if (!logged) throw new Error('自动登录失败（可能触发额外验证）');
     }
@@ -282,13 +247,20 @@ function main() {
     runAB(['state', 'save', STATE_PATH], { allowFail: true });
 
     const ck = doCheckinBestEffort();
+    runAB(['wait', '1500'], { allowFail: true });
     data = extractData();
     if (!data.checkin && ck) data.checkin = ck;
+
+    // 验证数据是否有效
+    if (!data.remaining_gb && !data.wallet_cny) {
+      console.error('警告：未能提取到有效数据，可能是页面结构变化或选择器不匹配');
+    }
 
     // Save again after check-in/use to keep freshest state.
     runAB(['state', 'save', STATE_PATH], { allowFail: true });
   } catch (e) {
     reason = e?.message || String(e);
+    console.error('执行出错:', reason);
   } finally {
     runAB(['close'], { allowFail: true });
   }
