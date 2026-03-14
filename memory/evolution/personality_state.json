@@ -8,7 +8,30 @@
     "risk_tolerance": 0.4,
     "obedience": 0.85
   },
-  "stats": {},
-  "history": [],
-  "updated_at": "2026-03-07T16:28:04.547Z"
+  "stats": {
+    "rigor=0.7|creativity=0.3|verbosity=0.3|risk_tolerance=0.4|obedience=0.9": {
+      "success": 1,
+      "fail": 1,
+      "avg_score": 0.5249999999999999,
+      "n": 2,
+      "updated_at": "2026-03-12T01:51:38.077Z"
+    }
+  },
+  "history": [
+    {
+      "at": "2026-03-12T01:49:34.913Z",
+      "key": "rigor=0.7|creativity=0.3|verbosity=0.3|risk_tolerance=0.4|obedience=0.9",
+      "outcome": "failed",
+      "score": 0.2,
+      "notes": "event:evt_1773280174762"
+    },
+    {
+      "at": "2026-03-12T01:51:38.077Z",
+      "key": "rigor=0.7|creativity=0.3|verbosity=0.3|risk_tolerance=0.4|obedience=0.9",
+      "outcome": "success",
+      "score": 0.85,
+      "notes": "event:evt_1773280298025"
+    }
+  ],
+  "updated_at": "2026-03-12T01:51:38.077Z"
 }

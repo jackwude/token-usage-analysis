@@ -1,0 +1,9 @@
+{
+    "round": 1,
+    "scheme": "state",
+    "home_time_ms": 25833,
+    "search_time_ms": 26145,
+    "total_time_ms": 53439,
+    "timestamp": "2026-03-12T18:23:09+08:00",
+    "success": false
+}

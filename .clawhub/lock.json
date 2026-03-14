@@ -21,10 +21,6 @@
       "version": "1.0.0",
       "installedAt": 1772467832392
     },
-    "multi-search-engine": {
-      "version": "2.0.1",
-      "installedAt": 1772467870433
-    },
     "skill-vetter": {
       "version": "1.0.0",
       "installedAt": 1772521517128
@@ -48,6 +44,10 @@
     "evolver": {
       "version": "1.27.3",
       "installedAt": 1773243381526
+    },
+    "humanizer": {
+      "version": "1.0.0",
+      "installedAt": 1773497506769
     }
   }
 }

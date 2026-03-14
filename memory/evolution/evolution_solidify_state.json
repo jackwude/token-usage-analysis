@@ -1,40 +1,35 @@
 {
   "last_run": {
-    "run_id": "run_1772900884552",
-    "created_at": "2026-03-07T16:28:04.604Z",
+    "run_id": "run_1773279645810",
+    "created_at": "2026-03-12T01:40:45.864Z",
     "parent_event_id": null,
-    "selected_gene_id": "gene_gep_repair_from_errors",
-    "selected_capsule_id": "capsule_1770477654236",
+    "selected_gene_id": null,
+    "selected_capsule_id": null,
     "selector": {
-      "selected": "gene_gep_repair_from_errors",
+      "selected": null,
       "reason": [
-        "signals match gene.signals_match",
-        "capsule trigger matches signals",
-        "signals: log_error, high_tool_usage:exec, repeated_tool_usage:exec",
-        "memory_graph: memory_prefer:gene_gep_repair_from_errors | gene_prior:0.333",
+        "no matching gene found; new gene may be required",
+        "signals: repeated_tool_usage:exec",
+        "memory_graph: memory_prefer:gene_gep_repair_from_errors | gene_prior:0.497",
         "drift_intensity: 0.577"
       ],
       "alternatives": []
     },
     "signals": [
-      "log_error",
-      "high_tool_usage:exec",
       "repeated_tool_usage:exec"
     ],
     "mutation": {
       "type": "Mutation",
-      "id": "mut_1772900884549",
-      "category": "repair",
+      "id": "mut_1773279645806",
+      "category": "optimize",
       "trigger_signals": [
-        "log_error",
-        "high_tool_usage:exec",
         "repeated_tool_usage:exec"
       ],
-      "target": "gene:gene_gep_repair_from_errors",
-      "expected_effect": "reduce runtime errors, increase stability, and lower failure rate",
+      "target": "behavior:protocol",
+      "expected_effect": "improve success rate and reduce repeated operational cost",
       "risk_level": "low"
     },
-    "mutation_id": "mut_1772900884549",
+    "mutation_id": "mut_1773279645806",
     "personality_state": {
       "type": "PersonalityState",
       "rigor": 0.7,
@@ -53,14 +48,24 @@
     "reused_source_node": null,
     "reused_chain_id": null,
     "baseline_untracked": [],
-    "baseline_git_head": "2bad60a8ee4f36632a70ec5288951f26ecd9f2bf",
+    "baseline_git_head": "70ce51180887a4752fd0a46d67d19cc5257b36ed",
     "blast_radius_estimate": {
-      "files": 20,
-      "lines": 1600
+      "files": 12,
+      "lines": 960
     },
     "active_task_id": null,
     "active_task_title": null,
     "applied_lessons": [],
     "hub_lessons": []
+  },
+  "last_solidify": {
+    "run_id": "run_1773279645810",
+    "at": "2026-03-12T01:51:38.025Z",
+    "event_id": "evt_1773280298025",
+    "capsule_id": "capsule_1773280298025",
+    "outcome": {
+      "status": "success",
+      "score": 0.85
+    }
   }
 }

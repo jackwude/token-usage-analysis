@@ -102,43 +102,84 @@ def _read_keywords(path: str) -> list[str]:
 
 
 def _run(cmd: list[str], *, timeout: int = 90) -> str:
+    # 确保使用正确的 mcporter 配置文件路径
+    script_dir = Path(__file__).resolve().parent  # scripts/
+    skill_dir = script_dir.parent  # xhs-keyword-search-export/
+    skills_dir = skill_dir.parent  # skills/
+    workspace_dir = skills_dir.parent  # .openclaw/workspace/
+    config_path = workspace_dir / "config" / "mcporter.json"
+    # 在 mcporter call 命令中插入 --config 参数
+    if len(cmd) >= 2 and cmd[0] == "mcporter" and cmd[1] == "call":
+        cmd.insert(1, "--config")
+        cmd.insert(2, str(config_path))
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if p.returncode != 0:
         raise RuntimeError((p.stderr or p.stdout or "unknown error").strip())
     return p.stdout
 
 
-_RE_TEXT = re.compile(r"text:\s*'([^']+)'")
-
-
-def _mcporter_call(selector: str, *, output: str = "json", timeout: int = 90, timeout_ms: int | None = None) -> Any:
-    """Call mcporter tool.
-
-    timeout: subprocess timeout seconds
-    timeout_ms: mcporter call timeout (passed via --timeout)
-
-    Notes:
-    - mcporter 在某些错误场景会返回类 JS 对象（单引号、未加引号 key），不是严格 JSON。
-      这里做 best-effort：抽取其中的 text 字段作为错误信息。
+def _mcporter_call(selector: str, *, timeout_ms: int = 120000, retries: int = 1, retry_sleep: float = 8.0) -> Any:
+    """Call mcporter tool with --args JSON format.
+    
+    Supports:
+    - xiaohongshu.search_feeds(keyword: 'xxx', filters: {...}) -> {"keyword": "xxx"}
+    - xiaohongshu.get_feed_detail(feed_id: 'xxx', xsec_token: 'yyy') -> {"feed_id": "xxx", "xsec_token": "yyy"}
+    
+    timeout_ms: mcporter call timeout
+    retries: number of retry attempts for transient errors
+    retry_sleep: seconds between retries
     """
-    cmd = ["mcporter", "call", selector, "--output", output]
-    if timeout_ms is not None:
-        cmd += ["--timeout", str(timeout_ms)]
-    out = _run(cmd, timeout=timeout).strip()
-
-    # happy path: strict json
-    try:
-        return json.loads(out)
-    except Exception:
-        pass
-
-    # error-ish path: mcporter returns pseudo-json with content[].text
-    if "isError" in out and "text:" in out:
-        texts = _RE_TEXT.findall(out)
-        if texts:
-            raise RuntimeError("; ".join(texts)[:500])
-
-    raise RuntimeError(f"mcporter output not json: {out[:200]}")
+    # Try to parse search_feeds first
+    search_match = re.search(r'''search_feeds\(keyword:\s*(['"])([^'"]+)\1''', selector)
+    if search_match:
+        keyword = search_match.group(2)
+        args_json = json.dumps({"keyword": keyword})
+        tool_name = "xiaohongshu.search_feeds"
+    else:
+        # Try get_feed_detail
+        detail_match = re.search(r'''get_feed_detail\(feed_id:\s*(['"])([^'"]+)\1,\s*xsec_token:\s*(['"])([^'"]+)\3\)''', selector)
+        if not detail_match:
+            raise RuntimeError(f"无法解析 selector: {selector}")
+        feed_id = detail_match.group(2)
+        xsec_token = detail_match.group(4)
+        args_json = json.dumps({"feed_id": feed_id, "xsec_token": xsec_token})
+        tool_name = "xiaohongshu.get_feed_detail"
+    
+    # Calculate config path: scripts -> skill -> skills -> workspace
+    script_dir = Path(__file__).resolve().parent
+    skill_dir = script_dir.parent
+    skills_dir = skill_dir.parent
+    workspace_dir = skills_dir.parent
+    config_path = workspace_dir / "config" / "mcporter.json"
+    
+    last_err = ""
+    for attempt in range(retries + 1):
+        cmd = ["mcporter", "--config", str(config_path), "call", tool_name, "--args", args_json, "--output", "json", "--timeout", str(timeout_ms)]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=max(60, timeout_ms // 1000 + 30))
+        out = (p.stdout or "").strip()
+        err = (p.stderr or "").strip()
+        
+        if out:
+            try:
+                return json.loads(out)
+            except Exception:
+                last_err = f"mcporter output not json: {out[:200]}, stderr: {err[:500]}"
+        else:
+            last_err = f"empty output, stderr: {err[:500]}"
+        
+        # Check for transient errors
+        transient = any(k in last_err.lower() for k in ["timed out", "timeout", "offline", "connection refused", "bad gateway"])
+        if attempt < retries and transient:
+            time.sleep(retry_sleep)
+            continue
+        
+        # For non-transient errors (like note not accessible), don't retry
+        if "不可访问" in last_err or "not available" in last_err.lower():
+            raise RuntimeError(last_err[:500])
+            
+        raise RuntimeError(last_err)
+    
+    raise RuntimeError(last_err or "mcporter call failed")
 
 
 def _now_bj() -> datetime:
@@ -453,13 +494,104 @@ def _write_xlsx(path: str, rows: list[Row], summary: dict[str, Any], per_keyword
     wb.close()
 
 
+# ============================================================================
+# IP 风控自动重试功能
+# ============================================================================
+
+def _check_mcp_ready() -> bool:
+    """检查 MCP 服务是否就绪。"""
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://127.0.0.1:18060/mcp", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except:
+        # 405 或其他错误也表示服务已启动
+        return True
+
+
+def _check_ip_risk() -> bool:
+    """检查是否遇到 IP 风控。
+    
+    通过测试调用 get_feed_detail 检测是否返回"笔记不可访问"错误。
+    返回 True 表示检测到 IP 风控。
+    """
+    test_feed_id = "67fba64a000000001d003885"
+    test_xsec_token = "ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA="
+    
+    try:
+        # 计算配置文件路径
+        script_dir = Path(__file__).resolve().parent
+        workspace_dir = script_dir.parent.parent
+        config_path = workspace_dir / "config" / "mcporter.json"
+        
+        args_json = json.dumps({"feed_id": test_feed_id, "xsec_token": test_xsec_token})
+        cmd = ["mcporter", "--config", str(config_path), "call", "xiaohongshu.get_feed_detail", 
+               "--args", args_json, "--output", "json", "--timeout", "30"]
+        
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=35)
+        out = (p.stdout or "").strip()
+        
+        # 检查是否返回错误
+        if "不可访问" in out or "Not Available" in out or "isError" in out:
+            return True
+        
+        # 尝试解析 JSON，看是否有正常数据
+        try:
+            data = json.loads(out)
+            if "data" in data and "note" in data.get("data", {}):
+                return False  # 正常返回
+        except:
+            pass
+        
+        return False
+    except Exception:
+        return False
+
+
+def _restart_xhs_mcp_container() -> bool:
+    """重启 xiaohongshu-mcp 容器以刷新 IP 状态。
+    
+    返回 True 表示重启成功。
+    """
+    print("\n🔄 检测到 IP 风控，尝试重启 MCP 容器刷新 IP...")
+    
+    try:
+        # 停止容器
+        subprocess.run(["docker", "stop", "xiaohongshu-mcp"], 
+                      capture_output=True, text=True, timeout=30)
+        print("  ⏹️  容器已停止")
+        
+        # 等待 2 秒
+        time.sleep(2)
+        
+        # 启动容器
+        subprocess.run(["docker", "start", "xiaohongshu-mcp"], 
+                      capture_output=True, text=True, timeout=30)
+        print("  ▶️  容器已启动")
+        
+        # 等待服务就绪（通常 5-10 秒）
+        print("  ⏳  等待 MCP 服务就绪...")
+        for i in range(15):
+            time.sleep(1)
+            if _check_mcp_ready():
+                print("  ✅ MCP 服务已就绪")
+                return True
+        
+        print("  ⚠️  等待超时，但继续尝试执行")
+        return True
+    except Exception as e:
+        print(f"  ❌ 重启失败：{e}")
+        return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="xhs MCP detail export")
     ap.add_argument("--keywords-file", required=True)
     ap.add_argument("--limit-keywords", type=int, default=0, help="仅取前 N 个关键词（0 表示不限制）")
-    ap.add_argument("--days", type=int, default=0, help="强校验：仅保留最近 N 天（0 表示不做时间强校验）")
-    ap.add_argument("--sort-by", default="最新")
-    ap.add_argument("--publish-time", default="", help="搜索筛选发布时间（如 一周内/一天内 等；留空表示不筛选）")
+    ap.add_argument("--days", type=int, default=0, help="强校验：仅保留最近 N 天（0 表示不做时间强校验；默认禁用）")
+    ap.add_argument("--sort-by", default="综合", help="排序方式：综合/最新/最热/最多点赞（默认综合）")
+    ap.add_argument("--publish-time", default="一周内", help="搜索筛选发布时间（如 一周内/一天内 等；默认一周内）")
 
     ap.add_argument("--candidate-per-keyword", type=int, default=10)
     ap.add_argument("--need-per-keyword", type=int, default=2, help="每个关键词需要补齐的条数")
@@ -471,8 +603,9 @@ def main() -> int:
     ap.add_argument("--sleep-burst-min", type=float, default=10.0)
     ap.add_argument("--sleep-burst-max", type=float, default=20.0)
 
-    # negative filter (high recall)
-    ap.add_argument("--negative-only", action="store_true", help="只保留负面内容（四类），并补齐到 need-per-keyword")
+    # negative filter (high recall) - 默认启用
+    ap.add_argument("--negative-only", action="store_true", default=True, help="只保留负面内容（四类），并补齐到 need-per-keyword（默认启用）")
+    ap.add_argument("--no-negative-filter", action="store_false", dest="negative_only", help="关闭负面过滤（默认开启）")
     ap.add_argument(
         "--negative-lexicon",
         default=str(Path(__file__).resolve().parent.parent / "references" / "negative_lexicon.json"),
@@ -484,6 +617,10 @@ def main() -> int:
     ap.add_argument("--search-retry", type=int, default=1, help="search_feeds 超时/离线时重试次数（默认1）")
     ap.add_argument("--search-retry-sleep", type=float, default=15.0, help="search_feeds 重试前等待秒数（默认15s）")
 
+    ap.add_argument("--auto-retry-ip-risk", action="store_true", default=True,
+                   help="遇到 IP 风控时自动重启容器并重试（默认启用）")
+    ap.add_argument("--max-ip-retry", type=int, default=1, help="IP 风控自动重试次数（默认 1 次）")
+
     ap.add_argument("--out-json", required=True)
     ap.add_argument("--out-xlsx", required=True)
 
@@ -492,6 +629,28 @@ def main() -> int:
     try:
         ensure_xhs_mcp()
         print(f"[runtime] {runtime_summary()}")
+
+        # IP 风控自动检测和重试（最多重试 N 次）
+        ip_retry_count = 0
+        max_ip_retry = getattr(args, 'max_ip_retry', 1)
+        auto_retry = getattr(args, 'auto_retry_ip_risk', True)
+        
+        while ip_retry_count <= max_ip_retry:
+            if ip_retry_count > 0:
+                print(f"\n🔄 IP 风控重试 #{ip_retry_count}/{max_ip_retry}")
+            
+            # 检查是否遇到 IP 风控
+            if auto_retry and _check_ip_risk():
+                print("\n⚠️  检测到 IP 风控限制")
+                if ip_retry_count < max_ip_retry:
+                    if _restart_xhs_mcp_container():
+                        ip_retry_count += 1
+                        print(f"✅ 容器已重启，等待 10 秒后重试...\n")
+                        time.sleep(10)
+                        continue
+                else:
+                    print("❌ 已达最大重试次数，继续执行（可能失败）\n")
+            break
 
         keywords = _read_keywords(args.keywords_file)
         if args.limit_keywords and args.limit_keywords > 0:
@@ -535,8 +694,9 @@ def main() -> int:
                     try:
                         search = _mcporter_call(
                             selector,
-                            timeout=120,
                             timeout_ms=args.search_timeout_ms,
+                            retries=args.search_retry,
+                            retry_sleep=args.search_retry_sleep,
                         )
                         break
                     except Exception as e:
@@ -562,9 +722,13 @@ def main() -> int:
                     continue
 
                 candidates = feeds[: max(1, args.candidate_per_keyword)]
+                total_candidates = len(candidates)
+                progress_interval = max(1, total_candidates // 4)  # 每 25% 播报一次
+
+                print(f"[{kidx}/{total_keywords}] 开始处理关键词：{kw} (候选{total_candidates}条，目标{args.need_per_keyword}条)")
 
                 burst_count = 0
-                for feed in candidates:
+                for cand_idx, feed in enumerate(candidates, start=1):
                     if got >= args.need_per_keyword or len(rows) >= args.max_total:
                         break
                     if details_fetched >= args.max_detail_per_keyword:
@@ -587,16 +751,22 @@ def main() -> int:
 
                     attempted += 1
 
+                    # 进度播报：每 N 条或关键节点
+                    if cand_idx % progress_interval == 0 or cand_idx == 1 or cand_idx == total_candidates:
+                        print(f"  [{kw}] 详情抓取进度：{cand_idx}/{total_candidates} (已获取{got}条，已拉详情{details_fetched}条)")
+
                     try:
                         detail = _mcporter_call(
                             f"xiaohongshu.get_feed_detail(feed_id: {feed_id!r}, xsec_token: {xsec_token!r})",
-                            timeout=150,
                             timeout_ms=120000,
+                            retries=1,
+                            retry_sleep=8.0,
                         )
                         details_fetched += 1
                     except Exception as e:
                         reason = str(e)
                         failed_details.append({"keyword": kw, "feed_id": feed_id, "reason": reason})
+                        print(f"  [{kw}] 详情抓取失败：{feed_id[:12]}... - {reason[:80]}")
                         _sleep_seconds(kidx * 100 + attempted, args.sleep_detail_min, args.sleep_detail_max)
                         continue
 

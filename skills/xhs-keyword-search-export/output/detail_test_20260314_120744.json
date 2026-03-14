@@ -1,0 +1,49 @@
+{
+  "details": [],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 0,
+    "failed_keywords": 1,
+    "empty_keywords": 0,
+    "insufficient_keywords": 0,
+    "total_details": 0,
+    "days_strong_check": 7,
+    "publish_time_filter": "",
+    "candidate_per_keyword": 5,
+    "need_per_keyword": 2,
+    "max_total": 30,
+    "failed_details": [
+      {
+        "keyword": "OPPO游戏助手更新后侧边栏没了",
+        "feed_id": "696b1b15000000002102a79f",
+        "reason": "mcporter output not json: {\n  content: [\n    {\n      type: 'text',\n      text: \"获取Feed详情失败: 笔记不可访问: Sorry, This Page Isn't Available Right Now.\\n\" +\n        '请打开小红书App扫码查看\\n' +\n        '小红书如何扫码\\n' +\n        '问题反馈\\n' +\n        "
+      },
+      {
+        "keyword": "OPPO游戏助手更新后侧边栏没了",
+        "feed_id": "691d2b35000000001f0061b3",
+        "reason": "mcporter output not json: {\n  content: [\n    {\n      type: 'text',\n      text: \"获取Feed详情失败: 笔记不可访问: Sorry, This Page Isn't Available Right Now.\\n\" +\n        '请打开小红书App扫码查看\\n' +\n        '小红书如何扫码\\n' +\n        '问题反馈\\n' +\n        "
+      }
+    ],
+    "search": {
+      "timeout_ms": 90000,
+      "retry": 1,
+      "retry_sleep": 15.0
+    }
+  },
+  "per_keyword": {
+    "OPPO游戏助手更新后侧边栏没了": {
+      "status": "failed",
+      "count": 0,
+      "attempted": 5,
+      "details_fetched": 3,
+      "skipped_bad_id": 0,
+      "reason": "mcporter output not json: {\n  content: [\n    {\n      type: 'text',\n      text: \"获取Feed详情失败: 笔记不可访问: Sorry, This Page Isn't Available Right Now.\\n\" +\n        '请打开小红书App扫码查看\\n' +\n        '小红书如何扫码\\n' +\n        '问题反馈\\n' +\n        "
+    }
+  },
+  "negative_filter": {
+    "enabled": false,
+    "lexicon": "",
+    "threshold": 2,
+    "max_detail_per_keyword": 20
+  }
+}

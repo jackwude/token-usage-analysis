@@ -4,7 +4,7 @@
       "baseUrl": "https://mcp.exa.ai/mcp"
     },
     "xiaohongshu": {
-      "baseUrl": "http://127.0.0.1:18060/mcp"
+      "baseUrl": "http://localhost:18060/mcp"
     }
   },
   "imports": []

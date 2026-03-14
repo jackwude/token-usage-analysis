@@ -1,0 +1,67 @@
+{
+  "results": [
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "67fba64a000000001d003885",
+      "xsec_token": "ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "title": "苹果15",
+      "author_nickname": "科创说手机",
+      "note_type": "video",
+      "like_count": "391",
+      "comment_count": "29",
+      "collect_count": "53",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141221/39b7de66df1006df1e8b8f5ce54d4f36/1040g2sg31g7e6mcdhc005pdonid3bmajfpkogjg!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/67fba64a000000001d003885?xsec_token=ABV_MdNbPkKk-ppHqki_vItXTdLDep8ocgGCIKWOAWpsA=",
+      "fetched_at": "2026-03-14T12:21:59"
+    },
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "6662c909000000000f00ea97",
+      "xsec_token": "ABKIVRo6HihETAWHS-sKj-6jTh-wkvYzq0Xx4xW8ZFL9Y=",
+      "title": "为什么不推荐任何人买iPhone15标准版",
+      "author_nickname": "🐅纹长猫",
+      "note_type": "normal",
+      "like_count": "4309",
+      "comment_count": "1410",
+      "collect_count": "505",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141221/c6b4bfca1127b499a50b8afacb221622/1040g2sg313o5939hiecg5obngqt0jt7n7ef1vug!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/6662c909000000000f00ea97?xsec_token=ABKIVRo6HihETAWHS-sKj-6jTh-wkvYzq0Xx4xW8ZFL9Y=",
+      "fetched_at": "2026-03-14T12:21:59"
+    },
+    {
+      "keyword": "iPhone 15 评测",
+      "note_id": "69872963000000001a032ad7",
+      "xsec_token": "ABiatMFJDaj3JeFWJLUsrEeW4GAieqo8JHPDgCMUb-4ws=",
+      "title": "",
+      "author_nickname": "梨花",
+      "note_type": "normal",
+      "like_count": "109",
+      "comment_count": "368",
+      "collect_count": "16",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141221/2523be4391443f0df4b874c6351add93/notes_pre_post/1040g3k031s9lvjojls005ojfunh8d1gucbc9kgg!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/69872963000000001a032ad7?xsec_token=ABiatMFJDaj3JeFWJLUsrEeW4GAieqo8JHPDgCMUb-4ws=",
+      "fetched_at": "2026-03-14T12:21:59"
+    }
+  ],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 1,
+    "failed_keywords": 0,
+    "total_items": 3,
+    "unique_note_ids": 3,
+    "failed_keywords_details": {},
+    "need_per_keyword": 3,
+    "candidate_per_keyword": 6,
+    "filters": {
+      "sort_by": "最新",
+      "publish_time": ""
+    }
+  },
+  "per_keyword": {
+    "iPhone 15 评测": {
+      "count": 3,
+      "attempted": 3,
+      "reason": ""
+    }
+  }
+}

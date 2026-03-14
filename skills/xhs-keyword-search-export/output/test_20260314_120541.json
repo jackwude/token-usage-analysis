@@ -1,0 +1,67 @@
+{
+  "results": [
+    {
+      "keyword": "OPPO游戏助手更新后侧边栏没了",
+      "note_id": "6904797a00000000030205c9",
+      "xsec_token": "ABfuEeReWWNe4JT653JsHuM3tQNzx1K-Skbq_D5ttfan8=",
+      "title": "Color OS 16还我侧边栏！",
+      "author_nickname": "Joanna",
+      "note_type": "normal",
+      "like_count": "35",
+      "comment_count": "44",
+      "collect_count": "8",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141206/f2b36ffe03cb6cd99ffdd82ac0d9ee5b/notes_pre_post/1040g3k031oa21fpolm004a4khnpiom4cvs3303g!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/6904797a00000000030205c9?xsec_token=ABfuEeReWWNe4JT653JsHuM3tQNzx1K-Skbq_D5ttfan8=",
+      "fetched_at": "2026-03-14T12:06:13"
+    },
+    {
+      "keyword": "OPPO游戏助手更新后侧边栏没了",
+      "note_id": "6963d2e8000000002103c3fd",
+      "xsec_token": "ABGoaiddDvXks8Oom5X9L5mmZkTk7KdgG4Xh0Sb23I4J4=",
+      "title": "我的游戏侧边栏没有了！！",
+      "author_nickname": "一颗初莓🍓",
+      "note_type": "normal",
+      "like_count": "6",
+      "comment_count": "27",
+      "collect_count": "2",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141206/336e55a8391abae77e4f537e46a1a168/notes_pre_post/1040g3k831r75mqug0a004aiusfkj0vd6bg150b8!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/6963d2e8000000002103c3fd?xsec_token=ABGoaiddDvXks8Oom5X9L5mmZkTk7KdgG4Xh0Sb23I4J4=",
+      "fetched_at": "2026-03-14T12:06:13"
+    },
+    {
+      "keyword": "OPPO游戏助手更新后侧边栏没了",
+      "note_id": "6900d11700000000030202fe",
+      "xsec_token": "AB8VsrsgwZPwl9AXCGZB6n97i6Ud724H6w2HbXyX6Zbhs=",
+      "title": "智能侧边栏",
+      "author_nickname": "橘味汽水",
+      "note_type": "normal",
+      "like_count": "19",
+      "comment_count": "62",
+      "collect_count": "4",
+      "cover_url": "http://sns-webpic-qc.xhscdn.com/202603141206/03ca80d91bfb63341b6478267e02ad09/1040g00831o6fnls55m605npinh709d40q1fnss0!nc_n_webp_mw_1",
+      "url": "https://www.xiaohongshu.com/explore/6900d11700000000030202fe?xsec_token=AB8VsrsgwZPwl9AXCGZB6n97i6Ud724H6w2HbXyX6Zbhs=",
+      "fetched_at": "2026-03-14T12:06:13"
+    }
+  ],
+  "summary": {
+    "executed_keywords": 1,
+    "successful_keywords": 1,
+    "failed_keywords": 0,
+    "total_items": 3,
+    "unique_note_ids": 3,
+    "failed_keywords_details": {},
+    "need_per_keyword": 3,
+    "candidate_per_keyword": 10,
+    "filters": {
+      "sort_by": "最新",
+      "publish_time": "7"
+    }
+  },
+  "per_keyword": {
+    "OPPO游戏助手更新后侧边栏没了": {
+      "count": 3,
+      "attempted": 3,
+      "reason": ""
+    }
+  }
+}
