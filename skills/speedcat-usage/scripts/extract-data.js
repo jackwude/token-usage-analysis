@@ -58,10 +58,18 @@
 
   // 钱包余额：尝试多种方式
   let wallet_cny = null;
-  const walletLine = lines.find(s => s.includes('钱包余额') || s.includes('余额'));
-  if (walletLine) {
-    const match = walletLine.match(/¥\s*([0-9.]+)/);
-    if (match) wallet_cny = match[1];
+  const walletIdx = lines.findIndex(s => s.includes('钱包余额') || s.includes('余额'));
+  if (walletIdx >= 0) {
+    // 先尝试在当前行找
+    const match = lines[walletIdx].match(/¥\s*([0-9.]+)/);
+    if (match) {
+      wallet_cny = match[1];
+    } else if (walletIdx + 1 < lines.length) {
+      // 如果当前行没有，尝试下一行（金额可能在单独一行）
+      const nextLine = lines[walletIdx + 1];
+      const nextMatch = nextLine.match(/¥\s*([0-9.]+)/);
+      if (nextMatch) wallet_cny = nextMatch[1];
+    }
   }
 
   // 累计返利

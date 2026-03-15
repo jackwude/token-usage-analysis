@@ -222,8 +222,9 @@ def scan_session_file(session_file):
     return tokens_in, tokens_out, total_cost, model
 
 def collect_usage():
-    """收集当前所有活跃 session 的用量快照（增量统计）"""
+    """收集当前所有活跃 session 的用量快照（增量统计 + 活跃 session 强制重扫）"""
     timestamp = datetime.now().isoformat()
+    now = datetime.now()
     
     if not AGENTS_DIR.exists():
         print(f"⚠️ agents 目录不存在：{AGENTS_DIR}", file=sys.stderr)
@@ -237,6 +238,10 @@ def collect_usage():
     
     lines_written = 0
     sessions_processed = 0
+    active_sessions = 0  # 新增：统计活跃 session 数
+    
+    # 活跃 session 阈值（5 分钟内修改过的文件）
+    ACTIVE_THRESHOLD_MINUTES = 5
     
     # 遍历所有 agent
     for agent_dir in AGENTS_DIR.iterdir():
@@ -255,6 +260,10 @@ def collect_usage():
             state_key = f"{agent_id}:{session_id}"
             mtime = datetime.fromtimestamp(session_file.stat().st_mtime)
             
+            # 判断是否是活跃 session（5 分钟内修改过）
+            time_since_modified = (now - mtime).total_seconds() / 60
+            is_active = time_since_modified < ACTIVE_THRESHOLD_MINUTES
+            
             # 扫描 session 文件，获取当前累计值
             current_in, current_out, current_cost, model = scan_session_file(session_file)
             
@@ -270,14 +279,23 @@ def collect_usage():
             delta_out = max(0, current_out - last_state.get('tokens_out', 0))
             delta_cost = max(0.0, current_cost - last_state.get('cost', 0.0))
             
+            # 活跃 session 强制重扫：即使状态文件有记录，也记录完整用量（避免漏掉正在进行的对话）
+            if is_active and (current_in > 0 or current_out > 0):
+                # 对于活跃 session，记录当前完整值（标记为活跃）
+                delta_in = current_in
+                delta_out = current_out
+                delta_cost = current_cost
+                active_sessions += 1
+            
             # 只有增量 > 0 才记录
             if delta_in > 0 or delta_out > 0:
                 # 写入日志
+                active_marker = " [active]" if is_active else ""
                 log_line = (
                     f"{timestamp} | agent={agent_id} | session={session_id} | "
                     f"model={model} | tokens_in={delta_in} | tokens_out={delta_out} | "
                     f"cost=${delta_cost:.4f} | file_mtime={mtime.isoformat()} | "
-                    f"file_size={session_file.stat().st_size}\n"
+                    f"file_size={session_file.stat().st_size}{active_marker}\n"
                 )
                 
                 with open(LOG_FILE, 'a', encoding='utf-8') as f:
@@ -290,14 +308,16 @@ def collect_usage():
                 'tokens_in': current_in,
                 'tokens_out': current_out,
                 'cost': current_cost,
-                'updated_at': timestamp
+                'updated_at': timestamp,
+                'last_seen_active': is_active  # 新增：标记上次是否活跃
             }
             sessions_processed += 1
     
     # 保存状态文件
     save_state(state)
     
-    print(f"✅ 已收集 {lines_written} 个 session 增量快照 ({timestamp}), 共处理 {sessions_processed} 个 session")
+    active_info = f" (含 {active_sessions} 个活跃 session)" if active_sessions > 0 else ""
+    print(f"✅ 已收集 {lines_written} 个 session 增量快照 ({timestamp}), 共处理 {sessions_processed} 个 session{active_info}")
 
 def diagnose():
     """诊断工具：检查收集器状态"""

@@ -1,0 +1,74 @@
+[
+  {
+    "model": "meta/llama-3.3-70b-instruct",
+    "status": "\u2705",
+    "time": 1.0174341201782227,
+    "error": null
+  },
+  {
+    "model": "meta/llama-3.1-405b-instruct",
+    "status": "\u2705",
+    "time": 1.1172409057617188,
+    "error": null
+  },
+  {
+    "model": "meta/llama-3.2-90b-vision-instruct",
+    "status": "\u2705",
+    "time": 0.9406468868255615,
+    "error": null
+  },
+  {
+    "model": "google/gemma-3-27b-it",
+    "status": "\u2705",
+    "time": 1.0649869441986084,
+    "error": null
+  },
+  {
+    "model": "deepseek-ai/deepseek-v3.2",
+    "status": "\u2705",
+    "time": 54.33961510658264,
+    "error": null
+  },
+  {
+    "model": "deepseek-ai/deepseek-r1-distill-qwen-32b",
+    "status": "\u274c",
+    "time": null,
+    "error": "HTTP 500: {\"error\":\"Error during inference of request chat-20c2259359df423ab69650ede6da4830 -- Encountered an "
+  },
+  {
+    "model": "nvidia/llama-3.1-nemotron-70b-instruct",
+    "status": "\u274c",
+    "time": null,
+    "error": "HTTP 404: {\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '9b96341b-9791-4db9-a00d-4e43aa192a39': Not fou"
+  },
+  {
+    "model": "nvidia/nemotron-4-340b-instruct",
+    "status": "\u274c",
+    "time": null,
+    "error": "HTTP 404: {\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function 'b0fcd392-e905-4ab4-8eb9-aeae95c30b37': Not fou"
+  },
+  {
+    "model": "qwen/qwen3.5-397b-a17b",
+    "status": "\u274c",
+    "time": null,
+    "error": "\u8d85\u65f6 (>60s)"
+  },
+  {
+    "model": "moonshotai/kimi-k2.5",
+    "status": "\u274c",
+    "time": null,
+    "error": "\u8d85\u65f6 (>60s)"
+  },
+  {
+    "model": "minimaxai/minimax-m2.5",
+    "status": "\u2705",
+    "time": 1.7123770713806152,
+    "error": null
+  },
+  {
+    "model": "minimaxai/minimax-m2.1",
+    "status": "\u2705",
+    "time": 1.022193193435669,
+    "error": null
+  }
+]

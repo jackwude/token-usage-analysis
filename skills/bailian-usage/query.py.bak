@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""
+百炼套餐用量查询（Playwright + 普通 Chrome）
+
+⚠️ 重要：必须使用普通 Chrome 浏览器（CDP 端口 9223）
+不要使用 Chrome Testing / Agent Browser - 会被百炼风控
+
+主链路：连接 Chrome -> 检查登录 -> 必要时登录 -> 提取数据
+（已移除 cookie 保存，每次直接登录，更简单可靠）
+"""
+
+import asyncio
+import re
+from pathlib import Path
+
+BAILIAN_URL = 'https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/detail'
+TOOLS_PATH = Path.home() / '.openclaw/workspace/TOOLS.md'
+CDP_URL = 'http://127.0.0.1:9223'
+
+def read_credentials():
+    """从 TOOLS.md 读取账号密码"""
+    content = TOOLS_PATH.read_text()
+    account_match = re.search(r'\*\*账号\*\*:\s*(.+)', content)
+    password_match = re.search(r'\*\*密码\*\*:\s*(.+)', content)
+    
+    if not account_match or not password_match:
+        raise Exception('未在 TOOLS.md 中找到百炼账号信息')
+    
+    return {
+        'account': account_match.group(1).strip(),
+        'password': password_match.group(1).strip()
+    }
+
+# Cookie 保存已移除 - 每次直接登录，更简单可靠
+
+async def do_login(page, account, password):
+    """执行登录流程 - 使用精确选择器，无 cookie 依赖"""
+    print('🔐 正在自动登录（使用 TOOLS.md 中的账号密码）...')
+    
+    try:
+        # 点击页面右上角"登录"按钮
+        print('  点击登录按钮...')
+        login_btn = page.get_by_text('登录').first
+        await login_btn.click(timeout=5000)
+        await asyncio.sleep(1)
+        
+        # 等待登录弹窗出现，点击"账密登录"
+        print('  切换到账密登录...')
+        pwd_login_tab = page.get_by_text('账密登录')
+        await pwd_login_tab.click(timeout=5000)
+        await asyncio.sleep(2)
+        
+        # 填写账号（用 label 定位）
+        print(f'  填写账号：{account}')
+        account_input = page.get_by_label('账号名').or_(page.get_by_placeholder('请输入').first)
+        await account_input.fill(account, timeout=5000)
+        print('  ✅ 账号已填写')
+        
+        # 填写密码
+        print('  填写密码...')
+        password_input = page.get_by_label('密码').or_(page.locator('input[type="password"]').first)
+        await password_input.fill(password, timeout=5000)
+        print('  ✅ 密码已填写')
+        
+        # 点击登录按钮
+        print('  点击登录按钮...')
+        submit_btn = page.get_by_text('立即登录')
+        await submit_btn.click(timeout=5000)
+        print('  ✅ 已点击登录按钮')
+        
+        # 等待登录完成
+        print('  等待登录完成...')
+        await asyncio.sleep(8)
+        
+        # 刷新页面确保登录态生效
+        await page.reload(wait_until='networkidle', timeout=30000)
+        await asyncio.sleep(3)
+        
+        print('  ✅ 登录流程完成')
+        return True
+        
+    except Exception as e:
+        print(f'  ⚠️ 自动登录失败：{e}')
+        print('  💡 可能触发滑块/短信验证，请在浏览器窗口中人工完成')
+        return False
+
+def extract_usage_data(text):
+    """从页面文本提取用量数据"""
+    status = '✅ 生效中' if '生效中' in text else ('❌ 已过期' if '已过期' in text else '-')
+    
+    days_match = re.search(r'剩余天数\s*(\d+)', text)
+    days_left = days_match.group(1) if days_match else '-'
+    
+    expire_match = re.search(r'结束时间\s*(\d{4}-\d{2}-\d{2})', text)
+    expire_date = expire_match.group(1) if expire_match else '-'
+    
+    auto_renew = '❌ 未开启' if '未开启' in text else ('✅ 已开启' if '已开启' in text else '-')
+    
+    last_stat_match = re.search(r'最后统计时间(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2})', text)
+    last_stat = last_stat_match.group(1) if last_stat_match else '-'
+    
+    # 提取用量百分比（支持多种格式）
+    h5_usage, h5_reset = '-', '-'
+    # 格式 1: 近 5 小时用量...重置...XX%
+    h5_match = re.search(r'近 5 小时用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2})重置[\s\S]*?(\d+)%', text)
+    if h5_match:
+        h5_reset = h5_match.group(1)
+        h5_usage = h5_match.group(2) + '%'
+    else:
+        # 格式 2: 近 5 小时...XX%
+        h5_match2 = re.search(r'近 5 小时[\s\S]{0,100}?(\d+)%', text)
+        if h5_match2:
+            h5_usage = h5_match2.group(1) + '%'
+    
+    w1_usage, w1_reset = '-', '-'
+    w1_match = re.search(r'近一周用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2})重置[\s\S]*?(\d+)%', text)
+    if w1_match:
+        w1_reset = w1_match.group(1)
+        w1_usage = w1_match.group(2) + '%'
+    
+    m1_usage, m1_reset = '-', '-'
+    m1_match = re.search(r'近一月用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2})重置[\s\S]*?(\d+)%', text)
+    if m1_match:
+        m1_reset = m1_match.group(1)
+        m1_usage = m1_match.group(2) + '%'
+    
+    return {
+        'status': status,
+        'days_left': days_left,
+        'expire_date': expire_date,
+        'auto_renew': auto_renew,
+        'last_stat': last_stat,
+        'h5_usage': h5_usage,
+        'h5_reset': h5_reset,
+        'w1_usage': w1_usage,
+        'w1_reset': w1_reset,
+        'm1_usage': m1_usage,
+        'm1_reset': m1_reset,
+        'raw_has_subscription': '我的订阅' in text
+    }
+
+def output_report(data, err=None):
+    """输出报告"""
+    if err:
+        print('## 📊 百炼 Coding Plan 套餐详情\n')
+        print(f'查询失败：{err}')
+        return
+    
+    print('## 📊 百炼 Coding Plan 套餐详情\n')
+    print(f"**套餐状态：** {data['status']} | 剩余 **{data['days_left']} 天**（{data['expire_date']} 到期）")
+    print(f"**自动续费：** {data['auto_renew']}\n")
+    print('**用量消耗：**')
+    print(f"- 最后统计时间：{data['last_stat']}")
+    print(f"- 近 5 小时：**{data['h5_usage']}**（{data['h5_reset']} **重置**）")
+    print(f"- 近一周：**{data['w1_usage']}**（{data['w1_reset']} **重置**）")
+    print(f"- 近一月：**{data['m1_usage']}**（{data['m1_reset']} **重置**）\n")
+    print('**可用模型：** 千问系列 / 智谱 / Kimi / MiniMax')
+    
+    # 用量分析
+    h5_pct = int(data['h5_usage'].rstrip('%')) if data['h5_usage'] != '-' else 0
+    w1_pct = int(data['w1_usage'].rstrip('%')) if data['w1_usage'] != '-' else 0
+    m1_pct = int(data['m1_usage'].rstrip('%')) if data['m1_usage'] != '-' else 0
+    
+    print('\n---\n')
+    print('### 💡 用量分析')
+    if h5_pct < 90 and w1_pct < 90 and m1_pct < 90:
+        print('- ✅ 用量充足')
+    elif h5_pct < 95 and w1_pct < 95 and m1_pct < 95:
+        print('- ⚠️ 用量紧张')
+    else:
+        print('- ❌ 用量不足')
+    
+    if data['days_left'] != '-' and int(data['days_left']) <= 7:
+        print(f"- ⚠️ 套餐将在 {data['days_left']} 天后到期，请及时续费")
+
+async def main():
+    err = None
+    data = None
+    
+    try:
+        from playwright.async_api import async_playwright
+        
+        print(f'🔌 连接到 Chrome (CDP: {CDP_URL})...')
+        
+        async with async_playwright() as p:
+            # 连接到现有的 Chrome 实例
+            browser = await p.chromium.connect_over_cdp(CDP_URL)
+            context = browser.contexts[0]
+            page = context.pages[0] if context.pages else await context.new_page()
+            
+            print('📄 打开百炼控制台...')
+            await page.goto(BAILIAN_URL, wait_until='networkidle', timeout=30000)
+            await asyncio.sleep(5)
+            
+            # 先点击"我的订阅"确保进入详情页
+            try:
+                my_sub = await page.query_selector('text=我的订阅')
+                if my_sub:
+                    await my_sub.click()
+                    print('  已点击"我的订阅"')
+                    await asyncio.sleep(5)
+            except:
+                pass
+            
+            # 检查登录状态
+            text = await page.evaluate('document.body.innerText')
+            is_logged_in = '退出登录' in text or '账号中心' in text
+            
+            if not is_logged_in:
+                print('⚠️ 未检测到登录态，尝试登录...')
+                creds = read_credentials()
+                await do_login(page, creds['account'], creds['password'])
+                
+                # 重新导航到订阅页面
+                await page.goto(BAILIAN_URL, wait_until='networkidle', timeout=30000)
+                await asyncio.sleep(3)
+                text = await page.evaluate('document.body.innerText')
+            
+            # 点击"我的订阅"（如果需要）
+            if '我的订阅' not in text:
+                try:
+                    await page.click('text=我的订阅', timeout=5000)
+                    await asyncio.sleep(3)
+                    text = await page.evaluate('document.body.innerText')
+                except:
+                    pass  # 可能已经在订阅页面
+            
+            # Cookie 保存已移除 - 每次直接登录
+            
+            # 提取数据
+            data = extract_usage_data(text)
+            
+            if not data['raw_has_subscription']:
+                raise Exception('未找到"我的订阅"信息（可能仍未完成登录）')
+            
+            await browser.close()
+    
+    except Exception as e:
+        err = str(e)
+    
+    output_report(data, err)
+
+if __name__ == '__main__':
+    asyncio.run(main())

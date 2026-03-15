@@ -1,0 +1,278 @@
+#!/usr/bin/env node
+
+/**
+ * 百炼套餐用量查询（Playwright + 普通 Chrome）
+ * 
+ * ⚠️ 重要：必须使用普通 Chrome 浏览器（CDP 端口 9223）
+ * 不要使用 Chrome Testing / Agent Browser - 会被百炼风控
+ * 
+ * 主链路：连接 Chrome -> 检查登录 -> 必要时登录 -> 提取数据 -> 保存 state
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
+
+const BAILIAN_URL = 'https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/index';
+const TOOLS_PATH = path.join(process.env.HOME, '.openclaw/workspace/TOOLS.md');
+const STATE_PATH = path.join(os.homedir(), '.openclaw/browser-states/bailian.json');
+const CDP_URL = 'http://127.0.0.1:9223';
+
+// 动态导入 playwright
+let playwright;
+async function importPlaywright() {
+  if (!playwright) {
+    playwright = require('playwright');
+  }
+  return playwright;
+}
+
+async function readCredentials() {
+  const content = fs.readFileSync(TOOLS_PATH, 'utf-8');
+  const accountMatch = content.match(/\*\*账号\*\*:\s*(.+)/);
+  const passwordMatch = content.match(/\*\*密码\*\*:\s*(.+)/);
+
+  if (!accountMatch || !passwordMatch) {
+    throw new Error('未在 TOOLS.md 中找到百炼账号信息');
+  }
+
+  return {
+    account: accountMatch[1].trim(),
+    password: passwordMatch[1].trim()
+  };
+}
+
+async function saveState(cookies) {
+  const aliyunCookies = cookies.filter(c => c.domain && c.domain.includes('aliyun'));
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, JSON.stringify({ cookies: aliyunCookies }, null, 2));
+  console.log(`✅ 已保存 ${aliyunCookies.length} 个 cookies 到 ${STATE_PATH}`);
+}
+
+async function loadState() {
+  if (fs.existsSync(STATE_PATH)) {
+    const data = JSON.parse(fs.readFileSync(STATE_PATH, 'utf-8'));
+    return data.cookies || [];
+  }
+  return [];
+}
+
+async function extractUsageData(text) {
+  const pick = (re) => (text.match(re) || [])[1] || '-';
+
+  const status = text.includes('生效中') ? '✅ 生效中' : (text.includes('已过期') ? '❌ 已过期' : '-');
+  const daysLeft = pick(/剩余天数\s*(\d+)/);
+  const expireDate = pick(/结束时间\s*(\d{4}-\d{2}-\d{2})/);
+  const autoRenew = text.includes('未开启') ? '❌ 未开启' : (text.includes('已开启') ? '✅ 已开启' : '-');
+  const lastStat = pick(/最后统计时间(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2})/);
+
+  // 提取用量百分比
+  let h5Usage = '-', h5Reset = '-';
+  const h5Match = text.match(/近 5 小时用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2}) 重置 [\s\S]*?(\d+)%/);
+  if (h5Match) {
+    h5Reset = h5Match[1];
+    h5Usage = h5Match[2] + '%';
+  }
+
+  let w1Usage = '-', w1Reset = '-';
+  const w1Match = text.match(/近一周用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2}) 重置 [\s\S]*?(\d+)%/);
+  if (w1Match) {
+    w1Reset = w1Match[1];
+    w1Usage = w1Match[2] + '%';
+  }
+
+  let m1Usage = '-', m1Reset = '-';
+  const m1Match = text.match(/近一月用量[\s\S]*?(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}:\d{2}) 重置 [\s\S]*?(\d+)%/);
+  if (m1Match) {
+    m1Reset = m1Match[1];
+    m1Usage = m1Match[2] + '%';
+  }
+
+  return {
+    status, daysLeft, expireDate, autoRenew, lastStat,
+    h5Usage, h5Reset, w1Usage, w1Reset, m1Usage, m1Reset,
+    rawHasSubscription: text.includes('我的订阅')
+  };
+}
+
+function outputReport(data, err) {
+  if (err) {
+    console.log('## 📊 百炼 Coding Plan 套餐详情\n');
+    console.log('查询失败：' + err);
+    return;
+  }
+
+  console.log('## 📊 百炼 Coding Plan 套餐详情\n');
+  console.log(`**套餐状态：** ${data.status} | 剩余 **${data.daysLeft} 天**（${data.expireDate} 到期）`);
+  console.log(`**自动续费：** ${data.autoRenew}\n`);
+  console.log('**用量消耗：**');
+  console.log(`- 最后统计时间：${data.lastStat}`);
+  console.log(`- 近 5 小时：**${data.h5Usage}**（${data.h5Reset} **重置**）`);
+  console.log(`- 近一周：**${data.w1Usage}**（${data.w1Reset} **重置**）`);
+  console.log(`- 近一月：**${data.m1Usage}**（${data.m1Reset} **重置**）\n`);
+  console.log('**可用模型：** 千问系列 / 智谱 / Kimi / MiniMax');
+
+  // 用量分析
+  const h5Pct = parseInt(data.h5Usage) || 0;
+  const w1Pct = parseInt(data.w1Usage) || 0;
+  const m1Pct = parseInt(data.m1Usage) || 0;
+  
+  console.log('\n---\n');
+  console.log('### 💡 用量分析');
+  if (h5Pct < 90 && w1Pct < 90 && m1Pct < 90) {
+    console.log('- ✅ 用量充足');
+  } else if (h5Pct < 95 && w1Pct < 95 && m1Pct < 95) {
+    console.log('- ⚠️ 用量紧张');
+  } else {
+    console.log('- ❌ 用量不足');
+  }
+  
+  if (data.daysLeft !== '-' && parseInt(data.daysLeft) <= 7) {
+    console.log(`- ⚠️ 套餐将在 ${data.daysLeft} 天后到期，请及时续费`);
+  }
+}
+
+async function doLogin(page, account, password) {
+  console.log('🔐 正在登录...');
+  
+  // 点击登录按钮
+  try {
+    const loginBtn = await page.$('text=登录');
+    if (loginBtn) {
+      await loginBtn.click();
+      console.log('  已点击登录按钮');
+      await page.waitForTimeout(3000);
+    }
+  } catch (e) {
+    console.log('  点击登录按钮失败:', e.message);
+  }
+
+  // 在所有 frames 中查找登录表单
+  const frames = page.frames();
+  let loginFrame = null;
+  
+  for (let i = 0; i < frames.length; i++) {
+    try {
+      const buttons = await frames[i].$$('button:has-text("立即登录")');
+      if (buttons && buttons.length > 0) {
+        loginFrame = frames[i];
+        console.log(`  找到登录表单在 frame ${i}`);
+        break;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  if (!loginFrame) {
+    console.log('  未找到登录表单');
+    return false;
+  }
+
+  // 填写账号
+  try {
+    const accountInputs = await loginFrame.$$('input[type="text"]');
+    if (accountInputs && accountInputs.length > 0) {
+      await accountInputs[0].fill(account);
+      console.log(`  已填写账号：${account}`);
+    }
+  } catch (e) {
+    console.log('  填写账号失败:', e.message);
+  }
+
+  await page.waitForTimeout(1000);
+
+  // 填写密码
+  try {
+    const passwordInputs = await loginFrame.$$('input[type="password"]');
+    if (passwordInputs && passwordInputs.length > 0) {
+      await passwordInputs[0].fill(password);
+      console.log('  已填写密码');
+    }
+  } catch (e) {
+    console.log('  填写密码失败:', e.message);
+  }
+
+  await page.waitForTimeout(2000);
+
+  // 点击登录按钮
+  try {
+    const loginButtons = await loginFrame.$$('button:has-text("立即登录")');
+    if (loginButtons && loginButtons.length > 0) {
+      await loginButtons[0].click();
+      console.log('  已点击登录按钮');
+    }
+  } catch (e) {
+    console.log('  点击登录按钮失败:', e.message);
+  }
+
+  // 等待登录完成
+  await page.waitForTimeout(8000);
+  
+  return true;
+}
+
+async function main() {
+  let err = null;
+  let data = null;
+
+  try {
+    const pw = await importPlaywright();
+    
+    console.log('🔌 连接到 Chrome (CDP: ' + CDP_URL + ')...');
+    
+    // 连接到现有的 Chrome 实例
+    const browser = await pw.chromium.connectOverCDP(CDP_URL);
+    const context = browser.contexts()[0];
+    const page = context.pages()[0] || await context.newPage();
+
+    console.log('📄 打开百炼控制台...');
+    await page.goto(BAILIAN_URL, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForTimeout(3000);
+
+    // 检查登录状态
+    let text = await page.evaluate(() => document.body.innerText);
+    const isLoggedIn = text.includes('退出登录') || text.includes('账号中心');
+    
+    if (!isLoggedIn) {
+      console.log('⚠️ 未检测到登录态，尝试登录...');
+      const creds = await readCredentials();
+      await doLogin(page, creds.account, creds.password);
+      
+      // 重新导航到订阅页面
+      await page.goto(BAILIAN_URL, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.waitForTimeout(3000);
+      text = await page.evaluate(() => document.body.innerText);
+    }
+
+    // 点击"我的订阅"（如果需要）
+    if (!text.includes('我的订阅')) {
+      try {
+        await page.click('text=我的订阅', { timeout: 5000 });
+        await page.waitForTimeout(3000);
+        text = await page.evaluate(() => document.body.innerText);
+      } catch (e) {
+        // 可能已经在订阅页面
+      }
+    }
+
+    // 保存 state
+    const cookies = await context.cookies();
+    await saveState(cookies);
+
+    // 提取数据
+    data = await extractUsageData(text);
+    
+    if (!data.rawHasSubscription) {
+      throw new Error('未找到"我的订阅"信息（可能仍未完成登录）');
+    }
+
+    await browser.close();
+  } catch (e) {
+    err = e?.message || String(e);
+  }
+
+  outputReport(data || {}, err);
+}
+
+main();

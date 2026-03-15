@@ -1,74 +1,48 @@
-# bailian-usage Skill
+# bailian-usage Skill | 百炼用量查询
 
-查询阿里云百炼 Coding Plan 套餐用量和有效期信息。
+**中文**：自动查询阿里云百炼 Coding Plan 套餐用量、剩余额度、有效期信息，支持自动登录和数据提取。
+**English**: Auto-query Alibaba Cloud Bailian Coding Plan usage, quota, and expiration. Supports automated login and data extraction.
 
-## 模型配置
+---
+
+## 模型配置 | Model Configuration
 
 **默认模型：** qwen3.5-plus（如需更换，可在调用时通过 `--model` 参数指定）
 
-## 触发条件
+## 触发条件 | Trigger Words
 
-用户提到以下关键词时激活：
-- "查百炼套餐"
-- "百炼用量"
-- "百炼额度"
-- "阿里云百炼"
+用户提到以下关键词时激活 | Activate when user mentions:
+- "查百炼套餐" / "Check Bailian package"
+- "百炼用量" / "Bailian usage"
+- "百炼额度" / "Bailian quota"
+- "阿里云百炼" / "Alibaba Cloud Bailian"
 - "Coding Plan"
-- "看看套餐情况"
-
-## 前置准备
-
-### 方案 A：Agent Browser 显式 State 持久化（推荐 ✅）
-
-**主链路（强制）：state load -> 访问页面 -> 必要时登录 -> state save -> 复测免登**
-
-配置约定：
-- Session：`bailian`
-- State 文件：`~/.openclaw/browser-states/bailian.json`
-
-**执行要求（重要）**：
-- 主链路必须使用显式 `state load/save`，不要把“openclaw 默认 profile 自动复用”当作 state 成功。
-- 登录后必须做一次复测：关闭当前会话并重开页面，确认不再跳登录页。
-
-**优势**：
-- ✅ 登录态保存/加载是显式动作，稳定且可观测
-- ✅ 易于自动化编排（失效检测、自动回写）
-- ✅ 一站点一状态文件，维护更轻
-### 方案 B：账号密码登录（备选）
-
-账号信息存储在 `TOOLS.md` 中，格式：
-```markdown
-## 🔐 阿里云百炼账号
-- **网址**: https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/index
-- **账号**: xxx@qq.com
-- **密码**: xxx
-```
-
-**适用场景**：Profile 失效时作为备选方案
+- "看看套餐情况" / "Check package status"
 
 ## 执行流程
 
-### 方案 A：Agent Browser 显式 State 持久化（推荐）
+### 主链路：openclaw browser tool + evaluate 直接提取
 
-1. **加载 state**（若存在）→ `state load ~/.openclaw/browser-states/bailian.json`
-2. **打开页面** → 访问百炼控制台
-3. **检查登录态** → 若未登录则走账号密码登录
-4. **进入“我的订阅”** → 提取套餐详情和用量
-5. **保存 state** → `state save` 覆盖更新
-6. **复测免登（必须）** → 关闭当前会话后重开同页面，确认不再跳登录
-7. **关闭页面** → 清理浏览器资源（省内存）
-8. **返回结果** → 格式化输出
-### 方案 B：账号密码登录（备选）
+1. **启动浏览器**（如未运行）
+   ```bash
+   openclaw browser start
+   ```
 
-1. **读取账号信息** → 从 `TOOLS.md` 获取百炼账号密码
-2. **打开浏览器** → 访问百炼控制台
-3. **登录** → 点击登录 → 账密登录 → 输入账号密码 → 登录
-4. **查看订阅** → 点击左侧"我的订阅"tab
-5. **提取信息** → 从页面获取套餐详情
-6. **关闭浏览器** → 必须关闭所有浏览器标签页（激进省内存策略）
-7. **返回结果** → 格式化输出套餐信息
+2. **打开百炼控制台** → 导航到 `https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/detail`
 
-## 输出格式（精简版）
+3. **检查登录态** → 通过 aria snapshot 检查是否有邮箱、"主账号"等登录标识
+
+4. **必要时登录**：
+   - 点击右上角"登录"按钮
+   - 填写账号密码（从 `TOOLS.md` 读取）
+   - 点击"立即登录"按钮
+   - 等待登录完成并刷新页面
+
+5. **提取数据** → 用 `evaluate` 执行 JS 直接读取 DOM 文本
+
+6. **返回结果** → 格式化输出套餐信息
+
+## 输出格式
 
 ```markdown
 ## 📊 百炼 Coding Plan 套餐详情
@@ -91,15 +65,47 @@
 - 到期提醒（如适用）
 ```
 
+## 登录流程详解
+
+### 自动化登录（默认）
+
+**主链路**：点击登录按钮 → 填写账号密码 → 点击立即登录
+
+**账号信息**自动从 `TOOLS.md` 读取，无需用户干预。
+
+**账号信息**存储在 `TOOLS.md` 中（示例）：
+```markdown
+## 🔐 阿里云百炼账号
+- **网址**: https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/index
+- **账号**: your-email@example.com
+- **密码**: your-password
+```
+
+⚠️ **注意**: 请勿将真实账号密码提交到版本控制系统。此处的示例仅用于说明格式。
+
+### 人工验证（备选）
+
+如果自动登录触发滑块/短信验证：
+1. 脚本会提示"可能需要人工完成验证"
+2. 用户在浏览器窗口中完成验证
+3. 验证成功后，继续执行查询
+
+## 数据提取逻辑
+
+使用 `evaluate` 执行 JS 直接读取 `document.body.innerText`，通过正则表达式提取：
+- 套餐状态：`生效中` / `已过期`
+- 剩余天数：`剩余天数\s*(\d+)\s*天`
+- 到期日期：`结束时间\s*(\d{4}-\d{2}-\d{2})`
+- 近 5 小时用量：`近\s*5\s*小时\s*用量[\s\S]{0,150}?(\d+)%`
+- 近一周用量：`近一周用量[\s\S]{0,150}?(\d+)%`
+- 近一月用量：`近一月用量[\s\S]{0,150}?(\d+)%`
+
 ## 注意事项
 
-1. **优先使用 state 方案** - session `bailian` + `~/.openclaw/browser-states/bailian.json`
-2. **百炼任务默认强制可视模式（headed）** - 只影响本 Skill；其他站点继续按全局无头策略运行
-3. **完成后关闭页面** - 避免浏览器资源占用
-4. **登录失败处理** - state 失效时切换账号密码登录并重新 `state save`
-5. **高风控场景** - 若触发短信/二次验证，需人工补一次验证后再持久化
-6. **用量刷新时间** - 可能滞后，以页面显示为准
-7. **Profile 仅兜底** - 仅在显式 state 连续失败时临时回退；回退成功后必须重新 `state save` 并做免登复测
+1. **每次直接登录** - 无 cookie 依赖，更简单可靠
+2. **高风控场景** - 若触发短信/滑块验证，需人工完成验证
+3. **用量刷新时间** - 可能滞后，以页面显示为准
+4. **浏览器管理** - 遵循省内存策略，主动关闭非必要 tab
 
 ## 快捷命令
 
@@ -112,10 +118,10 @@
 ## 边界说明
 
 - 本 Skill **只负责阿里云百炼 / Coding Plan / 套餐 / 额度 / 百炼 Token** 相关查询。
-- 像“查 Token 用量”“Token 消耗”“过去 24 小时 Token 用量”这类**未明确提到百炼**的说法，**不应**由本 Skill 处理，应转交 `token-usage-analysis`。
+- 像"查 Token 用量""Token 消耗""过去 24 小时 Token 用量"这类**未明确提到百炼**的说法，**不应**由本 Skill 处理，应转交 `token-usage-analysis`。
 
 ## 相关文件
 
 - **Skill 目录**: `~/.openclaw/workspace/skills/bailian-usage/`
-- **Profile 目录**: `~/.openclaw/chrome-profiles/bailian/`
+- **脚本**: `~/.openclaw/workspace/skills/bailian-usage/query_browser.sh`
 - **账号信息**: `~/.openclaw/workspace/TOOLS.md`

@@ -218,18 +218,22 @@ function main() {
   try {
     fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
 
+    // 先关闭可能存在的浏览器会话，确保状态可以加载
+    runAB(['close'], { allowFail: true });
+    
     // 尝试加载状态，但失败也不影响后续
     if (fs.existsSync(STATE_PATH)) {
       runAB(['state', 'load', STATE_PATH], { allowFail: true });
+      console.log('已加载保存的浏览器状态');
     }
 
     // 增加等待时间，应对网络慢
     runAB(['open', USER_URL]);
-    runAB(['wait', '3000'], { allowFail: true });
+    runAB(['wait', '5000'], { allowFail: true });
     clickVerifyIfNeeded();
     
     // 再等一会确保页面加载完成
-    runAB(['wait', '2000'], { allowFail: true });
+    runAB(['wait', '3000'], { allowFail: true });
 
     let logged = isLoggedIn();
 
