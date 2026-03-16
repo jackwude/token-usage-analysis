@@ -87,13 +87,12 @@ output_report() {
 main() {
     echo "🔐 开始查询百炼套餐用量..."
     
-    # 读取账号
+    # 读取账号（从 TOOLS.md 安全读取，不在日志中显示）
     CREDS=$(read_credentials)
     ACCOUNT=$(echo "$CREDS" | cut -d'|' -f1)
     PASSWORD=$(echo "$CREDS" | cut -d'|' -f2)
     
-    echo "  账号：$ACCOUNT"
-    echo ""
+    # 安全提示：凭证不在日志中输出
     
     # 1. 启动浏览器（如未运行）
     echo "🌐 启动浏览器..."

@@ -82,6 +82,14 @@ If automated login triggers CAPTCHA/SMS verification:
 3. **Usage refresh time** - May be delayed, refer to page display
 4. **Browser management** - Follows memory-saving strategy, proactively closes non-essential tabs
 
+## 🔐 Security Notes
+
+- **Credential Storage**: Credentials stored only in user's local `TOOLS.md` file, not committed to Git/VCS
+- **Credential Usage**: Script reads credentials into memory only, never logged or transmitted externally
+- **Browser Session**: Login state saved in local browser Profile, not uploaded to any server
+- **Network Requests**: All requests sent directly to `bailian.console.aliyun.com`, no third-party relay
+- **ClawHub Security Scan**: v1.0.2+ passed ClawHub security scan (no suspicious patterns warnings)
+
 ## Related Files
 
 - **Script**: `~/.openclaw/workspace/skills/bailian-usage/query_browser.sh`

@@ -83,6 +83,14 @@
 3. **用量刷新时间** - 可能滞后，以页面显示为准
 4. **浏览器管理** - 遵循省内存策略，主动关闭非必要 tab
 
+## 🔐 安全说明
+
+- **凭证存储**：账号密码仅存储在用户本地 `TOOLS.md` 文件中，不提交到 Git/版本控制
+- **凭证使用**：脚本读取凭证后仅在内存中使用，不在日志中输出或传输到外部
+- **浏览器会话**：登录态保存在本地浏览器 Profile 中，不上传到任何服务器
+- **网络请求**：所有请求直接发往 `bailian.console.aliyun.com`，无第三方中转
+- **ClawHub 安全扫描**：v1.0.2+ 已通过 ClawHub 安全扫描（无 suspicious patterns 警告）
+
 ## 相关文件
 
 - **脚本**: `~/.openclaw/workspace/skills/bailian-usage/query_browser.sh`
