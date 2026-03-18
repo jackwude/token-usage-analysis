@@ -52,8 +52,8 @@
 ```markdown
 ## 🔐 阿里云百炼账号
 - **网址**: https://bailian.console.aliyun.com/cn-beijing/?tab=coding-plan#/efm/index
-- **账号**: 392071081@qq.com
-- **密码**: 6H@36UYcfiYyKuD
+- **账号**: your-account@example.com
+- **密码**: your-password-here
 ```
 
 **流程**：
