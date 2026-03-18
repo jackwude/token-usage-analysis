@@ -3,15 +3,15 @@ import argparse
 
 TEMPLATE = '''{task}
 
-Notification requirements:
+Notification requirements (balanced mode, mandatory):
 - This task is user-visible and may take time.
-- Report only major milestones, not every small action.
-- Preferred cadence: at most every 2-3 minutes, or on meaningful milestones such as 25% / 50% / 75% / final.
-- Good milestone examples: environment ready, data gathered, processing started, processing finished, result packaged, blocked on X.
-- If there is no meaningful change, do not send a progress update.
-- Final response must include: outcome, total time if known, key outputs/paths, and next recommended step.
-- Keep updates short and practical.
-- Prefer one clear final summary over many fragmented messages.
+- Send milestone updates only at: START, 25%, 50%, 75%, and FINAL.
+- Do not send high-frequency micro-updates between milestones.
+- If no meaningful progress happened, skip interim updates.
+- Milestone messages should be concise: what changed + current stage + any blocker.
+- FINAL message must include: outcome (success/failed/timeout), elapsed time (if known), key outputs/paths, and next recommended step.
+- On failure/timeout, also include: likely cause, what you already tried, and best next action.
+- Prefer one clear final summary over fragmented chatter.
 '''
 
 
