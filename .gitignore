@@ -19,6 +19,7 @@
 **/sessions/
 **/credentials/
 **/sandboxes/
+TOOLS.md
 
 # Logs
 *.log
